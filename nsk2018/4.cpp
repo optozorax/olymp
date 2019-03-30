@@ -1,3 +1,5 @@
+/** Данная задача не решена!!! */
+
 #include <iostream>
 #include <algorithm>
 #include <string>

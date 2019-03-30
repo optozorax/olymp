@@ -5,44 +5,8 @@
 #include <numeric>
 #include <string>
 #include <fstream>
+#include "5_common.h"
 using namespace std;
-typedef int64_t bint;
-
-struct fraction 
-{
-	fraction() : a(0), b(1) {}
-	fraction(bint a1, bint b1) : a(a1), b(b1) {
-		if (a == 0 && b == 0) 
-			b = 1;
-	}
-	bint a, b;
-};
-
-fraction optimize(const fraction& a) {
-	bint g = gcd(a.a, a.b);
-	fraction result = a;
-	if (g != 0) {
-		result.a /= g;
-		result.b /= g;
-	}
-	return result;
-}
-
-fraction operator*(const fraction& a, const fraction& b) {
-	return optimize(fraction(a.a*b.a, a.b*b.b));
-}
-
-fraction operator+(const fraction& a, const fraction& b) {
-	return optimize(fraction(a.a*b.b + b.a*a.b, a.b*b.b));
-}
-
-ostream& operator<<(ostream& out, const fraction& a) {
-	if (a.b == 1) 
-		out << a.a;
-	else
-		out << (to_string(a.a) + "/" + to_string(a.b));
-	return out;
-}
 
 struct game_result
 {
@@ -52,14 +16,24 @@ struct game_result
 	int count;
 };
 
-vector<vector<vector<fraction>>> tables;
+vector<vector<vector<prob_line>>> lines;
+vector<prob_table> tables;
 
 game_result simulate_game(const vector<int>& game, int k) {
 	int tablen = floor(log2(game.size()))-1;
 	auto& table = tables[tablen]; 
-	for (int i = 0; i < game.size(); ++i) {
-		for (int j = 0; j < game.size(); ++j) {
-			table[game[i]-1][game[j]-1].a++;
+	for (auto& i : game) {
+		for (auto& j : game) {
+			table[i-1][j-1].a++;
+		}
+	}
+
+	auto& line = lines[tablen];
+	for (auto& i : game) {
+		for (auto& j : game) {
+			for (auto& k : game) {
+				line[i-1][j-1][k-1].a++;
+			}
 		}
 	}
 
@@ -89,32 +63,48 @@ game_result simulate_game(const vector<int>& game, int k) {
 
 void normalize_tables() {
 	for (auto& i : tables) {
-		auto copy = i;
 		for (int j = 0; j < i.size(); ++j) {
+			bint temp = i[j][j].a;
 			for (int k = 0; k < i[j].size(); ++k) {
-				copy[k][j] = optimize(fraction(i[k][j].a, i[j][j].a));
+				if (temp != 0) {
+					i[j][k].b = temp;
+					i[j][k].optimize();
+				}
 			}
 		}
-		i = copy;
+	}
+
+	for (auto& line : lines) {
+		for (int i = 0; i < line.size(); ++i) {
+			for (int j = 0; j < line[i].size(); ++j) {
+				bint temp = line[i][j][i].a;
+				for (int k = 0; k < line[i][j].size(); ++k) {
+					if (temp != 0) {
+						line[i][j][k].b = temp;
+						line[i][j][k].optimize();
+					}
+				}
+			}
+		}
 	}
 }
 
 int main() {
-	int k = 3, n = 2;
+	int k = 5, n = 3;
 	int count = pow(2.0, n);
 	vector<int> game(count);
 	for (int i = 0; i < count; ++i)
 		game[i] = i+1;
 
-	tables = vector<vector<vector<fraction>>>(n, vector<vector<fraction>>(count, vector<fraction>(count)));
+	tables.resize(n, vector<prob_line>(count, prob_line(count, fraction(0))));
+	lines.resize(n, vector<vector<prob_line>>(count, vector<prob_line>(count, prob_line(count, fraction(0)))));
 
 	vector<game_result> results2;
-	bint howMany = 0, all = 1ll*2ll*3ll*4ll*5ll*6ll*7ll*8ll*9ll*10ll*11ll*12ll*13ll*14ll*15ll*16ll;
+	//bint howMany = 0, all = 1ll*2ll*3ll*4ll*5ll*6ll*7ll*8ll*9ll*10ll*11ll*12ll*13ll*14ll*15ll*16ll;
 	do {
-		if (howMany%10000000 == 0) 
-			cout << "\r" << fixed << 100.0*howMany/all << "%           ";
+		//if (howMany%10000000 == 0) cout << "\r" << fixed << 100.0*howMany/all << "%           ";
 
-		howMany++;
+		//howMany++;
 		auto i = simulate_game(game, k);
 		for (auto& j : results2) {
 			if (j.game_count == i.game_count && j.score == i.score) {
@@ -142,20 +132,24 @@ int main() {
 		cout << setw(2) << i.game_count << ":" << setw(3) << i.score << " x " << i.count/384 << endl;
 	}
 
-	cout << "Result: " << sum << "/" << mycount << " = " << fraction(sum, count) << endl;
+	cout << "Result: " << sum << "/" << mycount << " = " << fraction(sum, mycount).optimize() << endl;
 
 	normalize_tables();
 
 	ofstream fout("5_tables.txt");
-	for (auto& i : tables) {
-		for (auto& j : i) {
-			for (auto& k : j) {
-				fout << setw(8) << k;
-			}
-			fout << endl;
-		}
+	for (auto& i : tables)
+		fout << i << endl << endl;
+	fout.close();
 
-		fout << endl << endl;
+	fout.open("5_lines.txt");
+	for (auto& line : lines) {
+		fout << "new table" << endl;
+		for (int i = 0; i < line.size(); ++i) {
+			for (int j = 0; j < line[i].size(); ++j) {
+				fout << i+1 << " and " << j+1 << ": " << line[i][j] << endl;
+			}
+		}
+		fout << endl << endl << endl;
 	}
 	fout.close();
 
