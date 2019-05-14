@@ -1,5 +1,5 @@
-// Это улучшенная версия 3.2 - моя последняя надежда на быстрое решение
-// Видите ли, тут тоже не хватает времени на 18 тесте! Да пошли вы в жопу!
+// Это улучшенная версия 3.3 - с подсказки Ступакова
+// Прошу прощения
 
 #include <iostream>
 #include <vector>
@@ -62,58 +62,56 @@ int main() {
 	bint w, h, k;
 	cin >> w >> h >> k;
 	vector<Rect> rects(k);
-	vector<int> ymas;
+	vector<int> xmas, ymas;
 	ymas.reserve(k*2);
 	for (int i = 0; i < k; ++i) {
 		cin >> rects[i].x >> rects[i].y >> rects[i].sx >> rects[i].sy;
+		xmas.push_back(rects[i].x); xmas.push_back(rects[i].x + rects[i].sx);
 		ymas.push_back(rects[i].y); ymas.push_back(rects[i].y + rects[i].sy);
 	}
 	erase_duplicates(ymas);
+	erase_duplicates(xmas);
 
-	vector<vector<pair<int, int>>> lines(ymas.size());
+	vector<vector<pair<int16_t, int16_t>>> lines(ymas.size());
 	for (auto& r : rects) {
 		int x = r.x, y = r.y;
 		int x1 = r.x+r.sx, y1 = r.y+r.sy;
 		int _y = findInCoords(ymas, y);
 		int _y1 = findInCoords(ymas, y1);
+		int _x = findInCoords(xmas, x);
+		int _x1 = findInCoords(xmas, x1);
 
 		for (int i = _y; i < _y1; ++i)
-			lines[i].push_back({x, x1});
+			lines[i].push_back({_x, _x1});
 	}
 
 	vector<bint> result(k+1);
 	result[0] = w * h;
 
-	vector<int> xmas;
+	vector<int16_t> matrix(xmas.size(), 0);
 	for (int i = 0; i < lines.size()-1; ++i) {
-		xmas.clear();
-		for (auto& j : lines[i]) {
-			xmas.push_back(j.first);
-			xmas.push_back(j.second);
-		}
-		erase_duplicates(xmas);
-
-		vector<int16_t> matrix(xmas.size(), 0);
+		matrix.clear();
+		matrix.resize(xmas.size(), 0);
 		for (int j = 0; j < lines[i].size(); ++j) {
-			int x = lines[i][j].first;
-			int x1 = lines[i][j].second;
-			int _x = findInCoords(xmas, x);
-			int _x1 = findInCoords(xmas, x1);
+			int _x = lines[i][j].first;
+			int _x1 = lines[i][j].second;
 
-			auto k = matrix.begin() + _x;
-			auto end = matrix.begin() + _x1;
-			for (; k != end; ++k) {
-				++(*k);
-			}
+			matrix[_x]++;
+			matrix[_x1]--;
 		}
 
 		bint ysize = ymas[i+1]-ymas[i];
+		bint count = 0;
 		for (int j = 0; j < xmas.size()-1; ++j) {
 			bint xsize = xmas[j+1]-xmas[j];
 			bint s = ysize * xsize;
 
+			// 0 0 0 + 0 0 0 ++ 0 0 -- 0 - 0
+			// 0 0 0 1 1 1 1 3  3 3 1  1 0 0
+			count += matrix[j];
+
 			result[0] -= s;
-			result[matrix[j]] += s;
+			result[count] += s;
 		}
 	}
 
