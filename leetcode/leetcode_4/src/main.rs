@@ -3,6 +3,8 @@ use std::time::{Instant};
 
 use std::i32::MAX;
 
+use itertools::Itertools;
+
 pub struct Solution {}
 
 type Pointer = (usize, usize);
@@ -145,11 +147,14 @@ fn median(nums: &Vec<i32>) -> f64 {
 }
 
 fn median_stupid(nums1: &Vec<i32>, nums2: &Vec<i32>) -> f64 {
+	// Решение O(n log n)
 	/*let mut c = nums1.clone();
 	c.extend(nums2.clone());
 	c.sort();
 	return median(&c);*/
-	let (mut i, mut j) = (0, 0);
+
+	// Решение O(n) в императивном стиле
+	/*let (mut i, mut j) = (0, 0);
     let total_length = nums1.len() + nums2.len();
     let median = total_length / 2;
     let mut cur = 0;
@@ -172,7 +177,18 @@ fn median_stupid(nums1: &Vec<i32>, nums2: &Vec<i32>) -> f64 {
         return (last + cur) as f64 / 2.0;
     }
 
-    cur as f64
+    cur as f64*/
+
+
+    // Решение O(n) в функциональном стиле, причём оно быстрее верхнего на 42%
+    let len = nums1.len() + nums2.len();
+	let mut merged = nums1.iter().merge(nums2.iter());
+	let center = len / 2;
+	if len % 2 == 1 {
+		*merged.nth(center).unwrap() as f64
+	} else {
+		merged.skip(center.saturating_sub(1)).take(2).sum::<i32>() as f64 / 2.
+	}
 }
 
 fn test_medians(a: Vec<i32>, b: Vec<i32>) {
