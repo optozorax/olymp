@@ -2,6 +2,7 @@ acm2014/Testacm2014
 acm2016/testacm2016
 acm2017/testacm2017
 acm2018/testacm2018
+acm2019/Testacm2019
 neerc2016/solutions
 neerc2016/solutions2016.zip
 neerc2017/jupy_solutions
@@ -12,3 +13,6 @@ neerc2018/best
 nsk2018/nsk2018tests.zip
 nsk2018/Testnsk2018
 nsk2019/Testnsk2019
+other/target
+other/Cargo.lock
+leetcode/leetcode_4/target
