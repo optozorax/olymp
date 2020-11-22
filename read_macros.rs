@@ -1,4 +1,6 @@
-#![allow(unused_imports)]
+#![allow(unused_imports, clippy::many_single_char_names)]
+use std::convert::TryFrom;
+use std::collections::BTreeMap;
 use std::iter::Peekable;
 use std::io::Read;
 use std::iter::FromIterator;
@@ -10,12 +12,12 @@ struct MyMap<T>(T);
 struct Input(Peekable<MyMap<std::io::Bytes<std::io::Stdin>>>);
 
 impl<I: Iterator<Item = Result<u8, std::io::Error>>> Iterator for MyMap<I> {
-    type Item = u8;
+	type Item = u8;
 
-    #[inline]
-    fn next(&mut self) -> Option<u8> {
-        self.0.next().map(|x| x.unwrap())
-    }
+	#[inline]
+	fn next(&mut self) -> Option<u8> {
+		self.0.next().map(|x| x.unwrap())
+	}
 }
 
 
@@ -41,12 +43,14 @@ macro_rules! on_num_type {
 	(u32 $on_unum:tt $on_inum:tt $on_fnum:tt) => { $on_unum };
 	(u64 $on_unum:tt $on_inum:tt $on_fnum:tt) => { $on_unum };
 	(u128 $on_unum:tt $on_inum:tt $on_fnum:tt) => { $on_unum };
+	(usize $on_unum:tt $on_inum:tt $on_fnum:tt) => { $on_unum };
 
 	(i8 $on_unum:tt $on_inum:tt $on_fnum:tt) => { $on_inum };
 	(i16 $on_unum:tt $on_inum:tt $on_fnum:tt) => { $on_inum };
 	(i32 $on_unum:tt $on_inum:tt $on_fnum:tt) => { $on_inum };
 	(i64 $on_unum:tt $on_inum:tt $on_fnum:tt) => { $on_inum };
 	(i128 $on_unum:tt $on_inum:tt $on_fnum:tt) => { $on_inum };
+	(isize $on_unum:tt $on_inum:tt $on_fnum:tt) => { $on_inum };
 
 	(f32 $on_unum:tt $on_inum:tt $on_fnum:tt) => { $on_fnum };
 	(f64 $on_unum:tt $on_inum:tt $on_fnum:tt) => { $on_fnum };
@@ -76,6 +80,11 @@ macro_rules! read {
 
 	(@read $input:ident SpacesString) => { read!(@string $input) };
 	(@read $input:ident String) => {{ read!(@spaces $input); read!(@string $input) }};
+	(@read $input:ident char) => {{ read!(@spaces $input); read!(@char $input) }};
+	(@read $input:ident u8char) => {{ read!(@spaces $input); read!(@u8char $input) }};
+	(@read $input:ident u8digit) => {{ read!(@spaces $input); read!(@u8digit $input) }};
+	(@read $input:ident u8lowletter) => {{ read!(@spaces $input); read!(@u8lowletter $input) }};
+	(@read $input:ident u8upletter) => {{ read!(@spaces $input); read!(@u8upletter $input) }};
 
 	(@read $input:ident $type:ident) => {
 		on_num_type!($type { 
@@ -165,6 +174,26 @@ macro_rules! read {
 			v.push($input.next().unwrap());
 		}
 		String::from_utf8(v).unwrap()
+	}};
+
+	(@char $input:ident) => {{
+		char::from($input.next().unwrap())
+	}};
+
+	(@u8char $input:ident) => {{
+		$input.next().unwrap()
+	}};
+
+	(@u8digit $input:ident) => {{
+		$input.next().unwrap() - b'0'
+	}};
+
+	(@u8lowletter $input:ident) => {{
+		$input.next().unwrap() - b'a'
+	}};
+
+	(@u8upletter $input:ident) => {{
+		$input.next().unwrap() - b'A'
 	}};
 }
 
