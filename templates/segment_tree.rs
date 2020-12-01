@@ -37,7 +37,7 @@ impl<'a, T: Clone + Default, F: Fn(T, T) -> T> SegmentTree<'a, T, F> {
 		pos * 2 + 1
 	}
 
-	pub fn f_for_segment_helper(&self, pos: usize, l: usize, r: usize, from: usize, to: usize) -> Option<T> {
+	fn f_for_segment_helper(&self, pos: usize, l: usize, r: usize, from: usize, to: usize) -> Option<T> {
 		if from > r || to < l {
 			None
 		} else if l <= from && to <= r {

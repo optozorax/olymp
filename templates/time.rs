@@ -9,3 +9,8 @@ macro_rules! time {
 time! {{
 
 }};
+
+#[test]
+fn bench() {
+    panic!();
+}
