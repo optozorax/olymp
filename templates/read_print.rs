@@ -41,6 +41,15 @@ impl FromStr for Chars {
     }
 }
 
+impl Display for Chars {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        for i in &self.0 {
+            write!(f, "{}", i)?;
+        }
+        Ok(())
+    }
+}
+
 // Allows to read two different types, separated by space
 struct SpaceTuple2<A, B>(pub A, pub B);
 impl<A: FromStr, B: FromStr> FromStr for SpaceTuple2<A, B>
