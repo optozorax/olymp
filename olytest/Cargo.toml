@@ -1,0 +1,12 @@
+[package]
+name = "olytest"
+version = "0.1.0"
+authors = ["ilya sheprut <optozorax@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+termcolor = "1.1.2"
+termcolor_macro = { "path" = "/home/zorax/my/termcolor_macro" }
+toml = "0.5.7"
+diff = "0.1.12"
+anyhow = "1.0.34"
