@@ -1,7 +1,8 @@
 macro_rules! time {
     ($a:expr) => {{
         let now = std::time::Instant::now();
-        $a;
+        #[allow(clippy::redundant_closure_call)]
+        (|| $a)();
         eprintln!("[{}:{}] Time: {:?}", file!(), line!(), now.elapsed());
     }};
 }

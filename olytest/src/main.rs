@@ -43,6 +43,15 @@ fn main() {
         .collect::<Vec<_>>();
 
     let program_name = {
+        clrln!(stdout: n (Color::Black)"Formatting...");
+        Command::new("cargo")
+            .arg("fmt")
+            .output()
+            .map(drop)
+            .unwrap_or_else(|err| {
+                clrln!(stdout: b (Color::Red) "Format error:"; "{}", err);
+            });
+
         clrln!(stdout: n (Color::Black)"Building release...");
 
         let output = Command::new("cargo")
@@ -90,7 +99,7 @@ fn main() {
 
     println!();
 
-    let run_for_input = |input: &str| -> String {
+    let run_for_input = |input: &str| -> (String, String) {
         let mut stdout = StandardStream::stdout(ColorChoice::Auto);
 
         let mut process = Command::new(&program_name).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap_or_else(|err| {
@@ -115,20 +124,25 @@ fn main() {
             exit(output.status.code().unwrap_or(1));
         }
 
-        String::from_utf8(output.stdout).unwrap_or_else(|err| {
-            clrln!(stdout: b (Color::Red) "Internal error:"; " output for process `{}` was not UTF8 encoded: {}.", program_name, err);
+        (String::from_utf8(output.stdout).unwrap_or_else(|err| {
+            clrln!(stdout: b (Color::Red) "Internal error:"; " stdout for process `{}` was not UTF8 encoded: {}.", program_name, err);
             exit(1)
-        })
+        }),
+        String::from_utf8(output.stderr).unwrap_or_else(|err| {
+            clrln!(stdout: b (Color::Red) "Internal error:"; " stderr for process `{}` was not UTF8 encoded: {}.", program_name, err);
+            exit(1)
+        }))
     };
 
     let mut ok_count = 0;
     let mut err_count = 0;
     for (no, (i, o)) in input_output {
-        let resulted = run_for_input(i);
+        let (resulted, err) = run_for_input(i);
         if resulted.trim() == o.trim() {
-            clrln!(stdout: b (Color::Green) "Test {} OK", no);
             ok_count += 1;
+            clrln!(stdout: b (Color::Green) "Test {} OK", no);
         } else {
+            err_count += 1;
             clrln!(stdout: b (Color::Red) "Test {} ERR", no);
             clrln!(stdout: n (Color::Blue) "input:");
             println!("{}\n", i);
@@ -144,8 +158,11 @@ fn main() {
                     }
                 }
             }
-            err_count += 1;
             println!();
+            if !err.trim().is_empty() {
+                clrln!(stdout: n (Color::Blue) "stderr:");
+                println!("{}\n", err.trim());
+            }
         }
     }
 
@@ -160,11 +177,15 @@ fn main() {
     }
 
     for (no, i) in input_test {
-        let resulted = run_for_input(i);
+        let (resulted, err) = run_for_input(i);
         clrln!(stdout: b (Color::Yellow) "Test {} testing", no);
         clrln!(stdout: n (Color::Blue) "input:");
         println!("{}\n", i);
         clrln!(stdout: n (Color::Blue) "output:");
         println!("{}\n", resulted.trim());
+        if !err.trim().is_empty() {
+            clrln!(stdout: n (Color::Blue) "stderr:");
+            println!("{}\n", err.trim());
+        }
     }
 }
