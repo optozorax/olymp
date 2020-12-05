@@ -33,6 +33,7 @@ fn main() {
         .zip(outputs.split('\\').map(|s| s.trim()))
         .enumerate()
         .map(|(index, v)| (index+1, v))
+        .filter(|(_, (_, out))| !out.is_empty())
         .collect::<Vec<_>>();
     let input_test = inputs
         .split('\\')
