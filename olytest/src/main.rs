@@ -167,12 +167,6 @@ fn main() {
         }
     }
 
-    if err_count == 0 {
-        clrln!(stdout: b u (Color::Green) "OK all {} tests.", ok_count);
-    } else {
-        clrln!(stdout: b u (Color::Green) "OK"; b (Color::Green) ":"; " {} tests, ", ok_count; b u (Color::Red) "ERR";  b (Color::Red) ":"; " {} tests.", err_count);
-    }
-
     if !input_test.is_empty() {
         println!();
     }
@@ -188,5 +182,11 @@ fn main() {
             clrln!(stdout: n (Color::Blue) "stderr:");
             println!("{}\n", err.trim());
         }
+    }
+
+    if err_count == 0 {
+        clrln!(stdout: b u (Color::Green) "OK all {} tests.", ok_count);
+    } else {
+        clrln!(stdout: b u (Color::Green) "OK"; b (Color::Green) ":"; " {} tests, ", ok_count; b u (Color::Red) "ERR";  b (Color::Red) ":"; " {} tests.", err_count);
     }
 }

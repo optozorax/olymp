@@ -109,3 +109,43 @@ fn main() {
     let mut stdin = input.lock().lines();
     let a: i64 = read(&mut stdin);
 }
+
+struct Symbols<T>(pub Vec<T>);
+impl<T: FromStr> FromStr for Symbols<T>
+where
+    <T as FromStr>::Err: std::error::Error + 'static,
+{
+    type Err = Box<dyn std::error::Error>;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Symbols(
+            s.chars()
+                .into_iter()
+                .map(|x| {
+                    let mut s = String::new();
+                    s.push(x);
+                    s.parse::<T>()
+                })
+                .collect::<Result<Vec<_>, _>>()?,
+        ))
+    }
+}
+
+
+impl<T: Display> Display for Symbols<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        for i in &self.0 {
+            write!(f, "{}", i)?;
+        }
+        Ok(())
+    }
+}
+
+struct Lines<T>(pub Vec<T>);
+impl<T: Display> Display for Lines<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        for i in &self.0 {
+            writeln!(f, "{}", i)?;
+        }
+        Ok(())
+    }
+}
