@@ -1,15 +1,28 @@
+macro_rules! print_time {
+    ($($a:tt)*) => {
+        eprintln!("[{}:{}] Time: {:?}", file!(), line!(), $($a)*);
+    };
+}
+
 macro_rules! time {
-    ($a:expr) => {{
+    ($($a:tt)*) => {
         let now = std::time::Instant::now();
-        #[allow(clippy::redundant_closure_call)]
-        (|| $a)();
-        eprintln!("[{}:{}] Time: {:?}", file!(), line!(), now.elapsed());
+        $($a)*
+        print_time!(now.elapsed());
+    };
+}
+
+macro_rules! sum_time {
+    ($($a:tt)*) => {{
+        let now = std::time::Instant::now();
+        $($a)*
+        now.elapsed()
     }};
 }
 
-time! {{
+time! {
 
-}};
+}
 
 #[test]
 fn bench() {
