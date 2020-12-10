@@ -10,3 +10,5 @@ termcolor_macro = { "git" = "https://github.com/optozorax/termcolor_macro", rev 
 toml = "0.5.7"
 diff = "0.1.12"
 anyhow = "1.0.34"
+structopt = { version = "0.3", default-features = false }
+itertools = "0.9.0"
