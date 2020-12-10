@@ -138,6 +138,11 @@ impl<'a, T: Clone, Y: Clone, F: Fn(Range<usize>, Y, Y) -> Y, FY: Fn(usize, T) ->
         self.f_for_segment_helper(1, on, self.start_range())
     }
 
+    pub fn f_for_all(&self) -> Y {
+        assert!(!self.input.is_empty());
+        self.f_for_segment(0..self.input.len()).unwrap()
+    }
+
     // Returns the array *on* which this tree is created
     pub fn on(&'a self) -> &'a [T] {
         self.input
