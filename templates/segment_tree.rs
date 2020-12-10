@@ -6,7 +6,9 @@ struct SegmentTree<'a, T, Y, F, FY> {
     fy: FY,
 }
 
-impl<'a, T: Clone, Y: Clone, F: Fn(Y, Y) -> Y, FY: Fn(T) -> Y> SegmentTree<'a, T, Y, F, FY> {
+impl<'a, T: Clone, Y: Clone, F: Fn(Range<usize>, Y, Y) -> Y, FY: Fn(usize, T) -> Y>
+    SegmentTree<'a, T, Y, F, FY>
+{
     fn child1(pos: usize) -> usize {
         pos * 2
     }
@@ -31,13 +33,21 @@ impl<'a, T: Clone, Y: Clone, F: Fn(Y, Y) -> Y, FY: Fn(T) -> Y> SegmentTree<'a, T
 
     fn build(&mut self, pos: usize, on: Range<usize>) -> Option<Y> {
         let result = if on.end - on.start == 2 {
-            let a = self.input.get(on.start).cloned().map(&self.fy);
-            let b = self.input.get(on.end - 1).cloned().map(&self.fy);
-            a.any_or_both_with(b, &self.f)
+            let a = self
+                .input
+                .get(on.start)
+                .cloned()
+                .map(|x| (self.fy)(on.start, x));
+            let b = self
+                .input
+                .get(on.end - 1)
+                .cloned()
+                .map(|x| (self.fy)(on.end - 1, x));
+            a.any_or_both_with(b, |x, y| (self.f)(on, x, y))
         } else {
             let a = self.build(Self::child1(pos), Self::child1range(on.clone()));
-            let b = self.build(Self::child2(pos), Self::child2range(on));
-            a.any_or_both_with(b, &self.f)
+            let b = self.build(Self::child2(pos), Self::child2range(on.clone()));
+            a.any_or_both_with(b, |x, y| (self.f)(on, x, y))
         };
         self.tree[pos] = result.clone();
         result
@@ -52,15 +62,24 @@ impl<'a, T: Clone, Y: Clone, F: Fn(Y, Y) -> Y, FY: Fn(T) -> Y> SegmentTree<'a, T
         if current.start >= on.end || current.end <= on.start {
             None
         } else if on.start <= current.start && current.end <= on.end {
-            self.tree
-                .get(pos)
-                .cloned()
-                .unwrap_or_else(|| Some((self.fy)(self.input.get(pos - self.tree.len())?.clone())))
+            self.tree.get(pos).cloned().unwrap_or_else(|| {
+                Some((self.fy)(
+                    pos - self.tree.len(),
+                    self.input.get(pos - self.tree.len())?.clone(),
+                ))
+            })
         } else {
-            #[rustfmt::skip]
-            let a = self.f_for_segment_helper(Self::child1(pos), on.clone(), Self::child1range(current.clone()));
-            let b = self.f_for_segment_helper(Self::child2(pos), on, Self::child2range(current));
-            a.any_or_both_with(b, &self.f)
+            let a = self.f_for_segment_helper(
+                Self::child1(pos),
+                on.clone(),
+                Self::child1range(current.clone()),
+            );
+            let b = self.f_for_segment_helper(
+                Self::child2(pos),
+                on.clone(),
+                Self::child2range(current),
+            );
+            a.any_or_both_with(b, |x, y| (self.f)(on, x, y))
         }
     }
 
@@ -69,23 +88,39 @@ impl<'a, T: Clone, Y: Clone, F: Fn(Y, Y) -> Y, FY: Fn(T) -> Y> SegmentTree<'a, T
         let (a, b) = if current.end - current.start == 2 {
             self.input[index] = t;
             (
-                self.input.get(current.start).cloned().map(&self.fy),
-                self.input.get(current.end - 1).cloned().map(&self.fy),
+                self.input
+                    .get(current.start)
+                    .cloned()
+                    .map(|x| (self.fy)(current.start, x)),
+                self.input
+                    .get(current.end - 1)
+                    .cloned()
+                    .map(|x| (self.fy)(current.end - 1, x)),
             )
         } else {
             if Self::child1range(current.clone()).contains(&index) {
                 (
-                    self.set_helper(Self::child1(pos), index, Self::child1range(current), t),
+                    self.set_helper(
+                        Self::child1(pos),
+                        index,
+                        Self::child1range(current.clone()),
+                        t,
+                    ),
                     self.tree[Self::child2(pos)].clone(),
                 )
             } else {
                 (
                     self.tree[Self::child1(pos)].clone(),
-                    self.set_helper(Self::child2(pos), index, Self::child2range(current), t),
+                    self.set_helper(
+                        Self::child2(pos),
+                        index,
+                        Self::child2range(current.clone()),
+                        t,
+                    ),
                 )
             }
         };
-        self.tree[pos] = a.any_or_both_with(b, &self.f);
+        self.tree[pos] = a.any_or_both_with(b, |x, y| (self.f)(current, x, y));
         self.tree[pos].clone()
     }
 
@@ -138,7 +173,7 @@ mod segment_tree_tests {
             let mut vec_clone = vec.clone();
             use rand::Rng;
             let mut rng = rand::thread_rng();
-            let mut tree = SegmentTree::create(&mut vec, operation, identity);
+            let mut tree = SegmentTree::create(&mut vec, |_, x, y| operation(x, y), |_, x| x);
             for _ in 0..200 {
                 if !tree.on().is_empty() {
                     let pos = rng.gen_range(0, tree.on().len());

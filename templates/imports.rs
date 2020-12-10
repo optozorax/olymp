@@ -5,7 +5,7 @@ use std::convert::{TryFrom, TryInto, identity};
 use std::fmt::{Debug, Display, Error, Formatter};
 use std::io::{BufRead, Read, Write};
 use std::iter::{FromIterator, Peekable};
-use std::ops::{Range, RangeInclusive};
+use std::ops::{Range, RangeInclusive, Add, Mul};
 use std::str::FromStr;
 use std::iter::once;
 

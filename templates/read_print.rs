@@ -149,3 +149,8 @@ impl<T: Display> Display for Lines<T> {
         Ok(())
     }
 }
+
+
+// fast output
+let stdout = std::io::stdout();
+let mut writer = std::io::BufWriter::new(stdout.lock());
