@@ -133,10 +133,10 @@ fn output_equals(a: &[u8], b: &[u8]) -> bool {
         .all(|(aline, bline)| {
             aline
                 .split(u8::is_ascii_whitespace)
-                .filter(|x| x.is_empty())
+                .filter(|x| !x.is_empty())
                 .eq(bline
                     .split(u8::is_ascii_whitespace)
-                    .filter(|x| x.is_empty()))
+                    .filter(|x| !x.is_empty()))
         })
 }
 
@@ -304,7 +304,7 @@ fn main() {
                             // TODO improve this thing, remove strings, &str, and do diff on raw [u8]!
                             let output_stdout = String::from_utf8(output.stdout).unwrap();
                             let o = String::from_utf8(o.to_vec()).unwrap();
-                            for line in diff::lines(&output_stdout, &o) {
+                            for line in diff::lines(&output_stdout.trim(), &o.trim()) {
                                 match line {
                                     diff::Result::Left(a) => {
                                         clrln!(stdout: b n (Color::Green) "+"; (Color::Green) " {}", a)
