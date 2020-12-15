@@ -337,6 +337,7 @@ fn main() {
                 }
             }
             Err(Crash(output)) => {
+                err_count += 1;
                 clrln!(stdout: b (Color::Red) "Test {} crashed", no);
                 clrln!(stdout: n (Color::Blue) "input:");
                 stdout.write_all(i).unwrap();
