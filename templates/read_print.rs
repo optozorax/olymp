@@ -1,3 +1,9 @@
+let a: i64 = read!();
+let Chars(s): Chars = read!();
+let SpaceVec(a): SpaceVec<i64> = read!();
+let SpaceTuple2(a, b): SpaceTuple2<i64, i64> = read!();
+let SpaceTuple3(a, b, c): SpaceTuple3<i64, i64, i64> = read!();
+
 fn read<T: FromStr, I: Iterator<Item = std::io::Result<String>>>(i: &mut I) -> T
 where
     <T as std::str::FromStr>::Err: std::fmt::Debug,
@@ -149,8 +155,3 @@ impl<T: Display> Display for Lines<T> {
         Ok(())
     }
 }
-
-
-// fast output
-let stdout = std::io::stdout();
-let mut writer = std::io::BufWriter::new(stdout.lock());

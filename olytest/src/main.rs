@@ -292,7 +292,11 @@ fn main() {
                     Some(o) => {
                         if output_equals(o, &output.stdout) {
                             ok_count += 1;
-                            clrln!(stdout: b (Color::Green) "Test {} OK", no);
+                            if output.stderr.is_empty() {
+                                clrln!(stdout: b (Color::Green) "Test {} OK", no);
+                            } else {
+                                clrln!(stdout: b (Color::Green) "Test {} OK", no; " but with "; (Color::Red) "stderr");
+                            }
                         } else {
                             err_count += 1;
                             clrln!(stdout: b (Color::Red) "Test {} ERR", no);
