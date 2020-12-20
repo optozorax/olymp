@@ -13,7 +13,7 @@ use toml::Value as Toml;
 #[derive(Debug, StructOpt)]
 #[structopt(
     name = "olytest",
-    about = "Program to run tests as easy and as fast as possible during competitive programming.\nWrite inputs for program in file `in.txt`, when each input separated by `\\` symbol. Each input will be run for program independently. Also, you can write outputs to file `out.txt`, separated by `\\` symbol. Output from program will be compared to those outputs which are written in `out.txt`. For other inputs, outputs of program just printed on screen.",
+    about = "Program to run tests as easy and as fast as possible during competitive programming.\nWrite inputs for program in file `tests/in.txt`, when each input separated by `\\` symbol. Each input will be run for program independently. Also, you can write outputs to file `tests/out.txt`, separated by `\\` symbol. Output from program will be compared to those outputs which are written in `tests/out.txt`. For other inputs, outputs of program just printed on screen.",
     author = "Ilya Sheprut a.k.a. optozorax"
 )]
 struct Opt {
@@ -146,11 +146,11 @@ fn main() {
     let mut stdout = StandardStream::stdout(ColorChoice::Auto);
     let mut stderr = StandardStream::stdout(ColorChoice::Auto);
 
-    let inputs = read_file("in.txt").unwrap_or_else(|err| {
+    let inputs = read_file("tests/in.txt").unwrap_or_else(|err| {
         clrln!(stdout: b (Color::Red) "Input error:"; " while reading `{}`: {}", err.file, err.error);
         exit(1)
     });
-    let outputs = read_file("out.txt").unwrap_or_else(|_| Vec::new());
+    let outputs = read_file("tests/out.txt").unwrap_or_else(|_| Vec::new());
 
     let tests_iterator = inputs
         .split(|x| *x == b'\\')
@@ -284,7 +284,7 @@ fn main() {
         use RunOk::*;
         match run_program(&program_name, i, &opt) {
             Ok(OnlyTime(duration)) => {
-                clrln!(stdout: b (Color::Blue) "Test {} run time:", no; " {:?}", duration);
+                clrln!(stdout: b (Color::Blue) "Test {} run time:", no; " {:.1?}", duration);
             }
             Ok(Success(output)) => {
                 let mut print_stderr = opt.stderr;

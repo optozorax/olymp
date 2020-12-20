@@ -4,6 +4,10 @@ version = "0.1.0"
 authors = ["ilya sheprut <optozorax@gmail.com>"]
 edition = "2018"
 
+[[bin]]
+path = "src/main.rs"
+name = "ol"
+
 [dependencies]
 termcolor = "1.1.2"
 termcolor_macro = { "git" = "https://github.com/optozorax/termcolor_macro", rev = "b1d8850" }

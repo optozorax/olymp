@@ -16,3 +16,5 @@ nsk2019/Testnsk2019
 other/target
 other/Cargo.lock
 leetcode/leetcode_4/target
+todo.todo
+rust-ideas.md

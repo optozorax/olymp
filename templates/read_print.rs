@@ -1,31 +1,65 @@
-let a: i64 = read!();
-let Chars(s): Chars = read!();
-let SpaceVec(a): SpaceVec<i64> = read!();
-let SpaceTuple2(a, b): SpaceTuple2<i64, i64> = read!();
-let SpaceTuple3(a, b, c): SpaceTuple3<i64, i64, i64> = read!();
+fn is_ascii_newline(byte: u8) -> bool { byte == b'\n' || byte == b'\r' }
 
-fn read<T: FromStr, I: Iterator<Item = std::io::Result<String>>>(i: &mut I) -> T
-where
-    <T as std::str::FromStr>::Err: std::fmt::Debug,
-{
-    i.next().unwrap().unwrap().parse().unwrap()
+struct Scanner<I: Iterator> {
+    iter: Peekable<I>,
+    buf: Vec<u8>,
 }
 
-struct SpaceVec<T>(pub Vec<T>);
-impl<T: FromStr> FromStr for SpaceVec<T>
-where
-    <T as FromStr>::Err: std::error::Error + 'static,
-{
-    type Err = Box<dyn std::error::Error>;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(SpaceVec(
-            s.split_whitespace()
-                .map(|x| x.parse::<T>())
-                .collect::<Result<Vec<_>, _>>()?,
-        ))
+impl<I: Iterator<Item = u8>> Scanner<I> {
+    pub fn new(iter: I) -> Self { Self { iter: iter.peekable(), buf: Vec::with_capacity(100) } }
+
+    pub fn byte(&mut self) -> u8 { self.iter.next().unwrap() }
+
+    pub fn read<T: FromStr>(&mut self) -> T
+    where T::Err: Debug {
+        self.buf.clear();
+        let mut skip_spaces = true;
+        while let Some(byte) = self.iter.peek() {
+            if skip_spaces {
+                if !byte.is_ascii_whitespace() {
+                    skip_spaces = false;
+                    self.buf.push(*byte);
+                }
+            } else {
+                if byte.is_ascii_whitespace() {
+                    break;
+                } else {
+                    self.buf.push(*byte);
+                }
+            }
+            self.iter.next();
+        }
+        let s = std::str::from_utf8(&self.buf).unwrap_or_else(|_| panic!("input is not utf8: {:?}", self.buf));
+        T::from_str(s).unwrap_or_else(|err| panic!("cannot parse from {:?}, error: {:?}", s, err))
+    }
+
+    pub fn bytes(&mut self) -> Vec<u8> {
+        let mut result = Vec::new();
+        while let Some(byte) = self.iter.peek().copied() {
+            self.iter.next();
+            if is_ascii_newline(byte) {
+                break;
+            } else {
+                result.push(byte);
+            }
+        }
+        result
+    }
+
+    pub fn readln<T: FromStr>(&mut self) -> Vec<T>
+    where T::Err: Debug {
+        let mut result = Vec::new();
+        while self.iter.peek().map(|x| !is_ascii_newline(*x)).unwrap_or(false) {
+            result.push(self.read());
+        }
+        self.iter.next();
+        result
     }
 }
 
+//----------------------------------------------------------------------------
+
+struct SpaceVec<T>(pub Vec<T>);
 impl<T: Display> Display for SpaceVec<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let len = self.0.len();
@@ -39,118 +73,36 @@ impl<T: Display> Display for SpaceVec<T> {
     }
 }
 
-struct Chars(pub Vec<char>);
-impl FromStr for Chars {
-    type Err = Box<dyn std::error::Error>;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Chars(s.chars().into_iter().collect::<Vec<char>>()))
-    }
-}
-
-impl Display for Chars {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        for i in &self.0 {
-            write!(f, "{}", i)?;
-        }
-        Ok(())
-    }
-}
-
-// Allows to read two different types, separated by space
-struct SpaceTuple2<A, B>(pub A, pub B);
-impl<A: FromStr, B: FromStr> FromStr for SpaceTuple2<A, B>
-where
-    <A as FromStr>::Err: std::error::Error + 'static,
-    <B as FromStr>::Err: std::error::Error + 'static,
-{
-    type Err = Box<dyn std::error::Error>;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut iter = s.split_whitespace();
-        let a = A::from_str(iter.next().ok_or_else(|| Box::new(Error))?)?;
-        let b = B::from_str(iter.next().ok_or_else(|| Box::new(Error))?)?;
-        Ok(SpaceTuple2(a, b))
-    }
-}
-
-// Allows to read three different types, separated by space
-struct SpaceTuple3<A, B, C>(pub A, pub B, pub C);
-impl<A: FromStr, B: FromStr, C: FromStr> FromStr for SpaceTuple3<A, B, C>
-where
-    <A as FromStr>::Err: std::error::Error + 'static,
-    <B as FromStr>::Err: std::error::Error + 'static,
-    <C as FromStr>::Err: std::error::Error + 'static,
-{
-    type Err = Box<dyn std::error::Error>;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut iter = s.split_whitespace();
-        let a = A::from_str(iter.next().ok_or_else(|| Box::new(Error))?)?;
-        let b = B::from_str(iter.next().ok_or_else(|| Box::new(Error))?)?;
-        let c = C::from_str(iter.next().ok_or_else(|| Box::new(Error))?)?;
-        Ok(SpaceTuple3(a, b, c))
-    }
-}
-
-// Allows to read four different types, separated by space
-struct SpaceTuple4<A, B, C, D>(pub A, pub B, pub C, pub D);
-impl<A: FromStr, B: FromStr, C: FromStr, D: FromStr> FromStr for SpaceTuple4<A, B, C, D>
-where
-    <A as FromStr>::Err: std::error::Error + 'static,
-    <B as FromStr>::Err: std::error::Error + 'static,
-    <C as FromStr>::Err: std::error::Error + 'static,
-    <D as FromStr>::Err: std::error::Error + 'static,
-{
-    type Err = Box<dyn std::error::Error>;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut iter = s.split_whitespace();
-        let a = A::from_str(iter.next().ok_or_else(|| Box::new(Error))?)?;
-        let b = B::from_str(iter.next().ok_or_else(|| Box::new(Error))?)?;
-        let c = C::from_str(iter.next().ok_or_else(|| Box::new(Error))?)?;
-        let d = D::from_str(iter.next().ok_or_else(|| Box::new(Error))?)?;
-        Ok(SpaceTuple4(a, b, c, d))
-    }
-}
-
-fn main() {
-    let input = std::io::stdin();
-    let mut stdin = input.lock().lines();
-    let a: i64 = read(&mut stdin);
-}
-
-struct Symbols<T>(pub Vec<T>);
-impl<T: FromStr> FromStr for Symbols<T>
-where
-    <T as FromStr>::Err: std::error::Error + 'static,
-{
-    type Err = Box<dyn std::error::Error>;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Symbols(
-            s.chars()
-                .into_iter()
-                .map(|x| {
-                    let mut s = String::new();
-                    s.push(x);
-                    s.parse::<T>()
-                })
-                .collect::<Result<Vec<_>, _>>()?,
-        ))
-    }
-}
-
-
-impl<T: Display> Display for Symbols<T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        for i in &self.0 {
-            write!(f, "{}", i)?;
-        }
-        Ok(())
-    }
-}
-
 struct Lines<T>(pub Vec<T>);
 impl<T: Display> Display for Lines<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         for i in &self.0 {
             writeln!(f, "{}", i)?;
+        }
+        Ok(())
+    }
+}
+
+struct Chars(pub Vec<u8>);
+impl Display for Chars {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        for i in &self.0 {
+            write!(f, "{}", char::from(*i))?;
+        }
+        Ok(())
+    }
+}
+
+struct SpaceMatrix<T>(pub Vec<Vec<T>>);
+
+impl<T: Display> Display for SpaceMatrix<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        for line in &self.0 {
+            for (index, i) in line.iter().enumerate() {
+                if index != 0 { write!(f, " ")?; }
+                write!(f, "{}", i)?;
+            }
+            writeln!(f)?;
         }
         Ok(())
     }
