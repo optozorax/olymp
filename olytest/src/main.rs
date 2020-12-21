@@ -290,6 +290,7 @@ fn main() {
         match run_program(&program_name, i, &opt) {
             Ok(Success(output, duration)) => {
                 let mut print_stderr = opt.stderr;
+                let mut print_runtime = false;
                 match o {
                     Some(o) => {
                         if output_equals(o, &output.stdout) {
@@ -336,6 +337,7 @@ fn main() {
                         stdout.write_all(&output.stdout).unwrap();
                         writeln!(stdout).unwrap();
                         print_stderr = true;
+                        print_runtime = opt.time;
                     }
                 }
                 if print_stderr && output.stderr.iter().any(|x| !x.is_ascii_whitespace()) {
@@ -344,7 +346,7 @@ fn main() {
                     stdout.write_all(&output.stderr).unwrap();
                     writeln!(stdout).unwrap();
                 }
-                if opt.time {
+                if print_runtime {
                     clrln!(stdout: (Color::Blue) "Run time: "; "{:.1?}", duration);
                 }
             }
