@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::process::{exit, Command};
@@ -156,7 +157,7 @@ fn main() {
     let mut err_count = 0;
     for (no, test) in tests.into_iter().enumerate().map(|(i, x)| (i + 1, x)) {
         let mut collector = run::Collector::new(opt.real_time, true, opt.escape_output, false);
-        let result = match test {
+        let (input, result) = match test {
             test::TokenizedTest::Simple { input, output } => {
                 let run_result = run::run_program(
                     &program_file_name,
@@ -165,15 +166,16 @@ fn main() {
                     &mut stdout,
                     &mut collector,
                 );
+                (input,
                 run_result.map(|duration| {
                     (
-                        input,
                         duration,
                         output,
                         collector.get_result_output(),
                         collector.is_program_writes_stderr(),
                     )
                 })
+                )
             }
             test::TokenizedTest::WithChecker {
                 checker_input,
@@ -187,92 +189,164 @@ fn main() {
                     &mut stdout,
                     &mut collector,
                 );
-                run_result.map(|duration| {
+                (checker_input, 
+                    run_result.map(|duration| {
                     (
-                        checker_input,
                         duration,
                         checker_output,
                         collector.get_result_output(),
                         collector.is_program_writes_stderr(),
                     )
                 })
+                )
             }
         };
         use run::RunErr::*;
-        match result {
-            Ok((input, duration, should_be_output, program_output, is_program_writes_stderr)) => {
+        struct TestResult<'a> {
+            verdict_color: Color, 
+            verdict: Cow<'static, str>, 
+            is_program_writes_stderr: bool, 
+            is_print_input_output: bool, 
+            should_be_output_diff: Option<(test::Lines<'a>, test::Lines<'a>)>,   
+            time: Option<std::time::Duration>,
+        }
+        let TestResult { verdict_color, verdict, is_program_writes_stderr, is_print_input_output, should_be_output_diff, time} = match result {
+            Ok((duration, should_be_output, program_output, is_program_writes_stderr)) => {
                 let tokenized_program_output = test::Lines::from(program_output);
-                let (verdict_color, verdict, is_print_input_output, should_be_output_diff) = match should_be_output {
+                match should_be_output {
                     Some(should_be_output) => {
                         if tokenized_program_output == should_be_output {
                             ok_count += 1;
-                            (Color::Green, "OK", opt.show_output, None)
+                            TestResult {
+                                verdict_color: Color::Green,
+                                verdict: Cow::Borrowed("OK"),   
+                                is_program_writes_stderr,
+                                is_print_input_output: opt.show_output,
+                                should_be_output_diff: None,
+                                time: if opt.time {
+                                    Some(duration)
+                                } else {
+                                    None
+                                },
+                            }
                         } else {
                             err_count += 1;
-                            (Color::Red, "ERR", true, Some(should_be_output))
+                            TestResult {
+                                verdict_color: Color::Red,
+                                verdict: Cow::Borrowed("ERR"),   
+                                is_program_writes_stderr,
+                                is_print_input_output: true,
+                                should_be_output_diff: Some((tokenized_program_output, should_be_output)),
+                                time: if opt.time {
+                                    Some(duration)
+                                } else {
+                                    None
+                                },
+                            }
                         }
                     }
                     None => {
-                        (Color::Yellow, "CHECK", true, None)
-                    }
-                };
-                clr!(stdout, b (verdict_color) "Test {} {}", no, verdict);
-                if is_program_writes_stderr {
-                    clr!(stdout, ", but with "; (Color::Red) "stderr");
-                }
-                if opt.time {
-                    clr!(stdout, ", "; (Color::Blue) "run time: "; "{:.1?}", duration);
-                }
-                writeln!(stdout).unwrap();
-                if is_print_input_output {
-                    clrln!(stdout, n (Color::Blue) "input:");
-                    stdout.write_all(input).unwrap();
-                    writeln!(stdout).unwrap();
-                    clrln!(stdout, n (Color::Blue) "output:");
-                    collector.print(&mut stdout);
-                    writeln!(stdout).unwrap();    
-                }
-                if let Some(should_be_output) = should_be_output_diff {
-                    clrln!(stdout, n (Color::Blue) "diff with test:");
-                    for line in
-                        diff::slice(&tokenized_program_output.0, &should_be_output.0)
-                    {
-                        match line {
-                            diff::Result::Left(a) => {
-                                clrln!(stdout, b n (Color::Green) "+"; (Color::Green) " {}", a)
-                            }
-                            diff::Result::Both(a, _) => println!("  {}", a),
-                            diff::Result::Right(a) => {
-                                clrln!(stdout, b n (Color::Red) "-"; (Color::Red) " {}", a)
-                            }
+                        TestResult {
+                            verdict_color: Color::Yellow,
+                            verdict: Cow::Borrowed("CHECK"),   
+                            is_program_writes_stderr,
+                            is_print_input_output: true,
+                            should_be_output_diff: None,
+                            time: if opt.time {
+                                Some(duration)
+                            } else {
+                                None
+                            },
                         }
                     }
-                    writeln!(stdout).unwrap();
                 }
             }
             Err(Crash) => {
                 err_count += 1;
-                clrln!(stdout, b (Color::Red) "Test {} crashed", no);
-                if !opt.real_time {
-                    collector.print(&mut stdout);
+                TestResult {
+                    verdict_color: Color::Red,
+                    verdict: Cow::Borrowed("crashed"),   
+                    is_program_writes_stderr: false,
+                    is_print_input_output: true,
+                    should_be_output_diff: None,
+                    time: None,
                 }
             }
             Err(NotRun(error)) => {
                 err_count += 1;
-                clrln!(stdout, b (Color::Red) "Test {} won't run:", no; " {}", error);
+                TestResult {
+                    verdict_color: Color::Red,
+                    verdict: Cow::Owned(format!("won't run: {:?}", error)),   
+                    is_program_writes_stderr: false,
+                    is_print_input_output: true,
+                    should_be_output_diff: None,
+                    time: None,
+                }
             }
             Err(DuringRun(error)) => {
                 err_count += 1;
-                clrln!(stdout, b (Color::Red) "Test {} unexpected error during run:", no; " {}", error);
+                TestResult {
+                    verdict_color: Color::Red,
+                    verdict: Cow::Owned(format!("unexpected error during run: {:?}", error)),   
+                    is_program_writes_stderr: false,
+                    is_print_input_output: true,
+                    should_be_output_diff: None,
+                    time: None,
+                }
             }
             Err(IoError(error)) => {
                 err_count += 1;
-                clrln!(stdout, b (Color::Red) "Test {} i/o error:", no; " {}", error);
+                TestResult {
+                    verdict_color: Color::Red,
+                    verdict: Cow::Owned(format!("I/O error: {:?}", error)),
+                    is_program_writes_stderr: false,
+                    is_print_input_output: true,
+                    should_be_output_diff: None,
+                    time: None,
+                }
             }
             Err(InternalError) => {
                 err_count += 1;
-                clrln!(stdout, b (Color::Red) "Test {} internal error.", no);
+                TestResult {
+                    verdict_color: Color::Red,
+                    verdict: Cow::Borrowed("internal error"),   
+                    is_program_writes_stderr: false,
+                    is_print_input_output: true,
+                    should_be_output_diff: None,
+                    time: None,
+                }
             }
+        };
+        clr!(stdout, b (verdict_color) "Test {} {}", no, verdict);
+        if is_program_writes_stderr {
+            clr!(stdout, ", but with "; (Color::Red) "stderr");
+        }
+        if let Some(time) = time {
+            clr!(stdout, ", "; (Color::Blue) "run time: "; "{:.1?}", time);
+        }
+        writeln!(stdout).unwrap();
+        if is_print_input_output && !opt.real_time {
+            clrln!(stdout, n (Color::Blue) "input:");
+            stdout.write_all(input).unwrap();
+            writeln!(stdout).unwrap();
+            clrln!(stdout, n (Color::Blue) "output:");
+            collector.print(&mut stdout);
+            writeln!(stdout).unwrap();    
+        }
+        if let Some((tokenized_program_output, should_be_output)) = should_be_output_diff {
+            clrln!(stdout, n (Color::Blue) "diff with test:");
+            for line in diff::slice(&tokenized_program_output.0, &should_be_output.0)
+                
+            {
+                match line {
+                    diff::Result::Left(a) =>
+                        clrln!(stdout, b n (Color::Green) "+"; (Color::Green) " {}", a),
+                    diff::Result::Both(a, _) => println!("  {}", a),
+                    diff::Result::Right(a) =>
+                        clrln!(stdout, b n (Color::Red) "-"; (Color::Red) " {}", a),
+                }
+            }
+            writeln!(stdout).unwrap();
         }
     }
 
