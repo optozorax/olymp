@@ -10,7 +10,7 @@ fn write_escaped<T: WriteColor>(
     data: &[u8],
     escape_output: bool,
     buffer: &mut Vec<u8>,
-) {
+) -> bool {
     if escape_output {
         buffer.clear();
         for s in data {
@@ -19,8 +19,10 @@ fn write_escaped<T: WriteColor>(
             }
         }
         output.write_all(&buffer).unwrap();
+        buffer.last().map(|x| *x == b'\n').unwrap_or(false)
     } else {
         output.write_all(data).unwrap();
+        data.last().map(|x| *x == b'\n').unwrap_or(false)
     }
 }
 
@@ -28,13 +30,13 @@ fn print_checker_stdout<T: WriteColor>(output: &mut T) {
     clr!(output, b (Color::Yellow) "[CHECKER] ");
 }
 fn print_checker_stderr<T: WriteColor>(output: &mut T) {
-    clr!(output, b (Color::Red) "[CHECKER] ");
+    clr!(output, b (Color::Red) "(CHECKER) ");
 }
 fn print_program_stdout<T: WriteColor>(output: &mut T) {
-    clr!(output, b (Color::Green) "[PROGRAM] ");
+    clr!(output, b (Color::Blue) "[PROGRAM] ");
 }
 fn print_program_stderr<T: WriteColor>(output: &mut T) {
-    clr!(output, b n (Color::Red) "[PROGRAM] ");
+    clr!(output, b n (Color::Red) "(PROGRAM) ");
 }
 
 fn print_out_with_checker<T: WriteColor>(
@@ -45,15 +47,16 @@ fn print_out_with_checker<T: WriteColor>(
     buffer: &mut Vec<u8>,
     kind: PrintTypeWithChecker,
     previous: &mut PrintTypeWithChecker,
-) {
+    previous_was_ln: bool,
+) -> bool {
     use PrintTypeWithChecker::*;
     if kind != *previous && !data.is_empty() {
-        *previous = kind;
-        if kind != Nothing {
+        if !(*previous == Nothing || previous_was_ln) {
             buffer.clear();
             buffer.push(b'\n');
             output.write_all(&buffer).unwrap();
         }
+        *previous = kind;
         match kind {
             Nothing => {}
             ProgramStdout => print_program_stdout(output),
@@ -73,7 +76,7 @@ fn print_out_with_checker<T: WriteColor>(
             CheckerStderr => escape_stderr,
         },
         buffer,
-    );
+    )
 }
 
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]
@@ -105,6 +108,7 @@ pub struct Collector {
     to_print: Vec<u8>,
     to_print_types: Vec<(PrintTypeWithChecker, Range<usize>)>,
     is_program_writes_stderr: bool,
+    previous_was_ln: bool,
 }
 
 impl Collector {
@@ -125,12 +129,13 @@ impl Collector {
             to_print: Vec::new(),
             to_print_types: Vec::new(),
             is_program_writes_stderr: false,
+            previous_was_ln: true,
         }
     }
 
     fn collect<T: WriteColor>(&mut self, input: &[u8], kind: PrintTypeWithChecker, output: &mut T) {
         if self.real_time_print {
-            print_out_with_checker(
+            self.previous_was_ln = print_out_with_checker(
                 output,
                 input,
                 self.escape_stdout,
@@ -138,6 +143,7 @@ impl Collector {
                 &mut self.buffer,
                 kind,
                 &mut self.previous,
+                self.previous_was_ln,
             );
         }
         if self.collect_to_print {
@@ -169,8 +175,9 @@ impl Collector {
     pub fn print<T: WriteColor>(&self, output: &mut T) {
         let mut previous = PrintTypeWithChecker::Nothing;
         let mut buffer = Vec::with_capacity(100);
+        let mut previous_was_ln = true;
         for (kind, range) in &self.to_print_types {
-            print_out_with_checker(
+            previous_was_ln = print_out_with_checker(
                 output,
                 &self.to_print[range.clone()],
                 self.escape_stdout,
@@ -178,6 +185,7 @@ impl Collector {
                 &mut buffer,
                 *kind,
                 &mut previous,
+                previous_was_ln,
             );
         }
     }

@@ -12,31 +12,35 @@ use olytest::test;
 #[derive(Debug, StructOpt)]
 #[structopt(
     name = "olytest",
-    about = "Program to run tests as easy and as fast as possible during competitive programming.\nWrite inputs for program in file `tests/<name>.in`, when each input separated by `\\` symbol. Each input will be run for program independently. Also, you can write outputs to file `tests/<name>.out`, separated by `\\` symbol. Output from program will be compared to those outputs which are written in `tests/<name>.out`. For other inputs, outputs of program just printed on screen.",
+    about = "Program to run tests as easy and as fast as possible during competitive programming.\nWrite tests for program in file `tests/<name>.test`, when each test separated by `\\` symbol. Then, inside test, input and output may be separated by '~' or '%'.\n * '~' is used, when you need simple testing.\n * '%' is used, when you need checker.\n * This symbols can be escaped by writing twice: \"~~\", \"%%\", \"\\\\\".\n * If none of this symbols is on the test, then output for program just printed on screen for visual testing.",
     author = "Ilya Sheprut a.k.a. optozorax"
 )]
 struct Opt {
-    /// Run executable in debug mode with `RUST_BACKTRACE=full`.
+    /// Run executable in debug mode, and with env `RUST_BACKTRACE=full`.
     #[structopt(short, long)]
     debug: bool,
 
-    /// Show stderr of program even if test passed.
-    #[structopt(short = "e", long)]
-    stderr: bool,
+    /// Show output of program even if test passed.
+    #[structopt(short = "o", long)]
+    show_output: bool,
 
-    /// Didn't collect stdout, stderr, just show run time.
+    /// Also show run time.
     #[structopt(short, long)]
     time: bool,
 
     /// Don't format code before compiling.
-    #[structopt(short = "f", long = "not-format")]
+    #[structopt(short = "f", long)]
     not_format: bool,
 
     /// Show program output in real time.
-    #[structopt(short = "r", long = "real-time")]
+    #[structopt(short = "r", long)]
     real_time: bool,
 
-    /// One-letter name of binary to run. May be not one-lettered: `e1`, `e2`.
+    /// With this option, output of program and checker will be escaped: line endings become '\n' and etc.
+    #[structopt(short = "s", long)]
+    escape_output: bool,
+
+    /// Name of binary to run. Examples `a`, `b`, `e1`.
     name: String,
 }
 
@@ -74,7 +78,7 @@ fn compile<T: WriteColor>(stdout: &mut T, name: &str, opt: &Opt) -> String {
         exit(1)
     });
 
-    // TODO не ложить всю программу, а возвращать в виде ошибки.
+    // TODO не ложить всю программу, а возвращать в виде ошибки, на случай если есть несколько программ для тестирования.
     if !output.status.success() {
         clrln!(stdout, b (Color::Red) "Building error.");
         clrln!(stdout, n (Color::Black) "With stdin from cargo:");
@@ -135,7 +139,9 @@ fn main() {
 
     let has_checker = test::has_checker(&tests);
 
-    format(&mut stdout, &opt);
+    if !opt.not_format {
+        format(&mut stdout, &opt);
+    }
 
     let program_file_name = compile(&mut stdout, &opt.name, &opt);
     let checker_file_name = if has_checker {
@@ -148,72 +154,105 @@ fn main() {
 
     let mut ok_count = 0;
     let mut err_count = 0;
-    for (no, test) in tests.into_iter().enumerate().map(|(i, x)| (i+1, x)) {
-        let mut collector = run::Collector::new(opt.real_time, true, true, false);
+    for (no, test) in tests.into_iter().enumerate().map(|(i, x)| (i + 1, x)) {
+        let mut collector = run::Collector::new(opt.real_time, true, opt.escape_output, false);
         let result = match test {
             test::TokenizedTest::Simple { input, output } => {
-                let run_result = run::run_program(&program_file_name, input, opt.debug, &mut stdout, &mut collector);
-                run_result.map(|duration| (input, duration, output, collector.get_result_output(), collector.is_program_writes_stderr()))
-            },
-            test::TokenizedTest::WithChecker { checker_input, checker_output } => {
-                let run_result = run::run_with_checker(&program_file_name, &checker_file_name, checker_input, opt.debug, &mut stdout, &mut collector);
-                run_result.map(|duration| (checker_input, duration, checker_output, collector.get_result_output(), collector.is_program_writes_stderr()))
-            },
+                let run_result = run::run_program(
+                    &program_file_name,
+                    input,
+                    opt.debug,
+                    &mut stdout,
+                    &mut collector,
+                );
+                run_result.map(|duration| {
+                    (
+                        input,
+                        duration,
+                        output,
+                        collector.get_result_output(),
+                        collector.is_program_writes_stderr(),
+                    )
+                })
+            }
+            test::TokenizedTest::WithChecker {
+                checker_input,
+                checker_output,
+            } => {
+                let run_result = run::run_with_checker(
+                    &program_file_name,
+                    &checker_file_name,
+                    checker_input,
+                    opt.debug,
+                    &mut stdout,
+                    &mut collector,
+                );
+                run_result.map(|duration| {
+                    (
+                        checker_input,
+                        duration,
+                        checker_output,
+                        collector.get_result_output(),
+                        collector.is_program_writes_stderr(),
+                    )
+                })
+            }
         };
         use run::RunErr::*;
         match result {
             Ok((input, duration, should_be_output, program_output, is_program_writes_stderr)) => {
-                let mut print_runtime = false;
-                match should_be_output {
+                let tokenized_program_output = test::Lines::from(program_output);
+                let (verdict_color, verdict, is_print_input_output, should_be_output_diff) = match should_be_output {
                     Some(should_be_output) => {
-                        let tokenized_program_output = test::Lines::from(program_output);
                         if tokenized_program_output == should_be_output {
                             ok_count += 1;
-                            clr!(stdout, b (Color::Green) "Test {} OK", no);
-                            if is_program_writes_stderr {
-                                clr!(stdout, ", but with "; (Color::Red) "stderr");
-                            }
-                            if opt.time {
-                                clr!(stdout, ", "; (Color::Blue) "run time: "; "{:.1?}", duration);
-                            }
-                            writeln!(stdout).unwrap();
+                            (Color::Green, "OK", opt.show_output, None)
                         } else {
                             err_count += 1;
-                            clrln!(stdout, b (Color::Red) "Test {} ERR", no);
-                            collector.print(&mut stdout);
-
-                            clrln!(stdout, n (Color::Blue) "diff with test:");
-                            for line in diff::slice(&tokenized_program_output.0, &should_be_output.0) {
-                                match line {
-                                    diff::Result::Left(a) => {
-                                        clrln!(stdout, b n (Color::Green) "+"; (Color::Green) " {}", a)
-                                    }
-                                    diff::Result::Both(a, _) => println!("  {}", a),
-                                    diff::Result::Right(a) => {
-                                        clrln!(stdout, b n (Color::Red) "-"; (Color::Red) " {}", a)
-                                    }
-                                }
-                            }
+                            (Color::Red, "ERR", true, Some(should_be_output))
                         }
                     }
                     None => {
-                        clrln!(stdout, b (Color::Yellow) "Test {} testing", no);
-                        clrln!(stdout, n (Color::Blue) "input:");
-                        stdout.write_all(input).unwrap();
-                        writeln!(stdout).unwrap();
-                        clrln!(stdout, n (Color::Blue) "output:");
-                        collector.print(&mut stdout);
-                        print_runtime = opt.time;
+                        (Color::Yellow, "CHECK", true, None)
                     }
+                };
+                clr!(stdout, b (verdict_color) "Test {} {}", no, verdict);
+                if is_program_writes_stderr {
+                    clr!(stdout, ", but with "; (Color::Red) "stderr");
                 }
-                if print_runtime {
-                    clrln!(stdout, (Color::Blue) "Run time: "; "{:.1?}", duration);
+                if opt.time {
+                    clr!(stdout, ", "; (Color::Blue) "run time: "; "{:.1?}", duration);
+                }
+                writeln!(stdout).unwrap();
+                if is_print_input_output {
+                    clrln!(stdout, n (Color::Blue) "input:");
+                    stdout.write_all(input).unwrap();
+                    writeln!(stdout).unwrap();
+                    clrln!(stdout, n (Color::Blue) "output:");
+                    collector.print(&mut stdout);
+                    writeln!(stdout).unwrap();    
+                }
+                if let Some(should_be_output) = should_be_output_diff {
+                    clrln!(stdout, n (Color::Blue) "diff with test:");
+                    for line in
+                        diff::slice(&tokenized_program_output.0, &should_be_output.0)
+                    {
+                        match line {
+                            diff::Result::Left(a) => {
+                                clrln!(stdout, b n (Color::Green) "+"; (Color::Green) " {}", a)
+                            }
+                            diff::Result::Both(a, _) => println!("  {}", a),
+                            diff::Result::Right(a) => {
+                                clrln!(stdout, b n (Color::Red) "-"; (Color::Red) " {}", a)
+                            }
+                        }
+                    }
+                    writeln!(stdout).unwrap();
                 }
             }
             Err(Crash) => {
                 err_count += 1;
                 clrln!(stdout, b (Color::Red) "Test {} crashed", no);
-
                 if !opt.real_time {
                     collector.print(&mut stdout);
                 }
