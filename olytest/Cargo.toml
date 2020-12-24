@@ -10,9 +10,7 @@ name = "ol"
 
 [dependencies]
 termcolor = "1.1.2"
-termcolor_macro = { "git" = "https://github.com/optozorax/termcolor_macro", rev = "b1d8850" }
-toml = "0.5.7"
+termcolor_macro = { git = "https://github.com/optozorax/termcolor_macro", rev = "ad7a052" }
 diff = "0.1.12"
-anyhow = "1.0.34"
 structopt = { version = "0.3", default-features = false }
-itertools = "0.9.0"
+tokio = { version = "0.3.6", features = ["process", "io-util", "macros", "rt-multi-thread"] }

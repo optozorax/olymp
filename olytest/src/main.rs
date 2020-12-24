@@ -1,14 +1,13 @@
 use std::fs::File;
 use std::io::{Read, Write};
-use std::process::{exit, Command, Stdio};
-use std::time::{Duration, Instant};
+use std::process::{exit, Command};
 
-use anyhow::{Context, Result as AhResult};
-use itertools::{EitherOrBoth, Itertools};
 use structopt::StructOpt;
 use termcolor::{Color, ColorChoice, StandardStream, WriteColor};
 use termcolor_macro::*;
-use toml::Value as Toml;
+
+use olytest::run;
+use olytest::test;
 
 #[derive(Debug, StructOpt)]
 #[structopt(
@@ -33,66 +32,12 @@ struct Opt {
     #[structopt(short = "f", long = "not-format")]
     not_format: bool,
 
+    /// Show program output in real time.
+    #[structopt(short = "r", long = "real-time")]
+    real_time: bool,
+
     /// One-letter name of binary to run. May be not one-lettered: `e1`, `e2`.
     name: String,
-}
-
-enum RunOk {
-    Success(std::process::Output, Duration),
-}
-
-enum RunErr {
-    Crash(std::process::Output),
-    NotRun(std::io::Error),
-    DuringRun(std::io::Error),
-    IoError(std::io::Error),
-    InternalError,
-}
-
-fn run_program(path: &str, input: &[u8], opt: &Opt) -> Result<RunOk, RunErr> {
-    let mut process = {
-        let mut process = Command::new(&path);
-
-        // Print colors if this program run with color printing
-        // TODO, this isn't working :(
-        if let Ok(key) = std::env::var("COLORTERM") {
-            process.env("COLORTERM", &key);
-        }
-        if let Ok(key) = std::env::var("TERM") {
-            process.env("TERM", &key);
-        }
-        if opt.debug {
-            process.env("RUST_BACKTRACE", "full");
-        }
-
-        process.stdout(Stdio::piped()).stderr(Stdio::piped());
-        process
-    }
-    .stdin(Stdio::piped())
-    .spawn()
-    .map_err(RunErr::NotRun)?;
-
-    let time = Instant::now();
-    let err = process
-        .stdin
-        .take()
-        .ok_or(RunErr::InternalError)?
-        .write_all(input);
-    match err.map_err(|x| (x.kind(), x)) {
-        Ok(_) => (),
-        Err((std::io::ErrorKind::BrokenPipe, _)) => (), // Ignore broken pipe because we write to closed channel, and we don't care about it
-        Err((_, err)) => return Err(RunErr::IoError(err)),
-    }
-
-    let output = process.wait_with_output().map_err(RunErr::DuringRun)?;
-
-    let duration = time.elapsed();
-
-    if !output.status.success() {
-        Err(RunErr::Crash(output))
-    } else {
-        Ok(RunOk::Success(output, duration))
-    }
 }
 
 struct ReadFileError<'a> {
@@ -109,275 +54,185 @@ fn read_file(file: &str) -> Result<Vec<u8>, ReadFileError> {
     Ok(result)
 }
 
-// Checks output of program, ignores spaces, but requires other things to lay on same lines
-fn output_equals(a: &[u8], b: &[u8]) -> bool {
-    let alines = a
-        .split(|x| *x == b'\n')
-        .filter(|x| !x.iter().all(|c| c.is_ascii_whitespace()))
-        .collect::<Vec<&[u8]>>();
-    let blines = b
-        .split(|x| *x == b'\n')
-        .filter(|x| !x.iter().all(|c| c.is_ascii_whitespace()))
-        .collect::<Vec<&[u8]>>();
-    if alines.len() != blines.len() {
-        return false;
+fn compile<T: WriteColor>(stdout: &mut T, name: &str, opt: &Opt) -> String {
+    let output = if opt.debug {
+        clrln!(stdout, n (Color::Black)"Building `{}` in debug...", name);
+        Command::new("cargo")
+            .arg("build")
+            .args(&["--bin", name])
+            .output()
+    } else {
+        clrln!(stdout, n (Color::Black)"Building `{}` in release...", name);
+        Command::new("cargo")
+            .arg("build")
+            .arg("--release")
+            .args(&["--bin", name])
+            .output()
+    }
+    .unwrap_or_else(|err| {
+        clrln!(stdout, b (Color::Red) "Building error:"; "{:?}", err);
+        exit(1)
+    });
+
+    // TODO не ложить всю программу, а возвращать в виде ошибки.
+    if !output.status.success() {
+        clrln!(stdout, b (Color::Red) "Building error.");
+        clrln!(stdout, n (Color::Black) "With stdin from cargo:");
+        stdout.write_all(&output.stdout).unwrap();
+        println!();
+
+        clrln!(stdout, n (Color::Black) "With stderr from cargo:");
+        stdout.write_all(&output.stderr).unwrap();
+        exit(output.status.code().unwrap_or(1));
     }
 
-    alines
-        .into_iter()
-        .zip(blines.into_iter())
-        .all(|(aline, bline)| {
-            aline
-                .split(u8::is_ascii_whitespace)
-                .filter(|x| !x.is_empty())
-                .eq(bline
-                    .split(u8::is_ascii_whitespace)
-                    .filter(|x| !x.is_empty()))
-        })
+    let prefix = if opt.debug {
+        "target/debug/"
+    } else {
+        "target/release/"
+    };
+    let postfix = &name;
+
+    prefix.to_string() + postfix
+}
+
+fn format<T: WriteColor>(stdout: &mut T, opt: &Opt) {
+    if !opt.not_format {
+        clrln!(stdout, n (Color::Black) "Formatting...");
+        Command::new("cargo")
+            .arg("fmt")
+            .output()
+            .map(drop)
+            .unwrap_or_else(|err| {
+                clrln!(stdout, b (Color::Red) "Format error:"; "{}", err);
+            });
+    }
 }
 
 fn main() {
     let opt = Opt::from_args();
 
     let mut stdout = StandardStream::stdout(ColorChoice::Auto);
-    let mut stderr = StandardStream::stdout(ColorChoice::Auto);
 
-    let inputs = read_file(format!("tests/{}.in", opt.name).as_str()).unwrap_or_else(|err| {
+    let test_file_name = format!("tests/{}.test", opt.name);
+    let test_file_content = read_file(test_file_name.as_str()).unwrap_or_else(|err| {
         match err.error.kind() {
             std::io::ErrorKind::NotFound => {
-                clrln!(stdout: b (Color::Red) "File "; "`{}`", err.file; b (Color::Red) " not found."; " You should create this file and write input tests to your program in it.");
+                clrln!(stdout, b (Color::Red) "File "; "`{}`", err.file; b (Color::Red) " not found."; " You should create this file and write input tests to your program in it.");
             },
             _ => {
-                clrln!(stdout: b (Color::Red) "Unknown input error:"; " while reading `{}`: {}", err.file, err.error);
+                clrln!(stdout, b (Color::Red) "Unknown input error:"; " while reading `{}`: {}", err.file, err.error);
             },
         }
         exit(1)
     });
-    let outputs = read_file(format!("tests/{}.out", opt.name).as_str()).unwrap_or_else(|_| Vec::new());
 
-    let tests_iterator = inputs
-        .split(|x| *x == b'\\')
-        .map(|x| {
-            &x[x.iter()
-                .position(|x| !x.is_ascii_whitespace())
-                .unwrap_or(x.len())
-                ..x.len()
-                    - x.iter()
-                        .rev()
-                        .position(|x| !x.is_ascii_whitespace())
-                        .unwrap_or(0)]
-        }) // trim
-        .zip_longest(
-            outputs.split(|x| *x == b'\\').map(|x| {
-                &x[x.iter()
-                    .position(|x| !x.is_ascii_whitespace())
-                    .unwrap_or(x.len())
-                    ..x.len()
-                        - x.iter()
-                            .rev()
-                            .position(|x| !x.is_ascii_whitespace())
-                            .unwrap_or(0)]
-            }), // trim
-        )
-        .enumerate()
-        .filter_map(|(index, v)| {
-            Some((
-                index + 1,
-                match v {
-                    EitherOrBoth::Both(i, o) => (i, Some(o)),
-                    EitherOrBoth::Left(i) => (i, None),
-                    EitherOrBoth::Right(_) => return None,
-                },
-            ))
-        });
+    let tests = test::read_tests(&test_file_content).unwrap_or_else(|test_no| {
+        clrln!(stdout, b (Color::Red) "Wrong test format."; " In file `{}` on test #{} you have wrong format. Maybe not escaped `~`, `%`, `\\` or more than one separator of the same symbols.", test_file_name, test_no);
+        exit(1)
+    });
+    let tests = test::tokenize_tests(&tests);
 
-    let program_name = {
-        if !opt.not_format {
-            clrln!(stdout: n (Color::Black) "Formatting...");
-            Command::new("cargo")
-                .arg("fmt")
-                .output()
-                .map(drop)
-                .unwrap_or_else(|err| {
-                    clrln!(stdout: b (Color::Red) "Format error:"; "{}", err);
-                });
-        }
+    let has_checker = test::has_checker(&tests);
 
-        let output = if opt.debug {
-            clrln!(stdout: n (Color::Black)"Building debug...");
-            Command::new("cargo")
-                .arg("build")
-                .args(&["--bin", &opt.name])
-                .env(
-                    "COLORTERM",
-                    &std::env::var("COLORTERM").unwrap_or_else(|_| String::new()),
-                )
-                .env(
-                    "TERM",
-                    &std::env::var("TERM").unwrap_or_else(|_| String::new()),
-                )
-                .output()
-        } else {
-            clrln!(stdout: n (Color::Black)"Building release...");
-            Command::new("cargo")
-                .arg("build")
-                .arg("--release")
-                .args(&["--bin", &opt.name])
-                .env(
-                    "COLORTERM",
-                    &std::env::var("COLORTERM").unwrap_or_else(|_| String::new()),
-                )
-                .env(
-                    "TERM",
-                    &std::env::var("TERM").unwrap_or_else(|_| String::new()),
-                )
-                .output()
-        }
-        .unwrap_or_else(|err| {
-            clrln!(stdout: b (Color::Red) "Building error:"; "{:?}", err);
-            exit(1)
-        });
+    format(&mut stdout, &opt);
 
-        if !output.status.success() {
-            clrln!(stdout: b (Color::Red) "Building error.");
-            clrln!(stdout: n (Color::Black) "With stdin from cargo:");
-            drop(std::io::stdout().write_all(&output.stdout));
-            println!();
-
-            clrln!(stderr: n (Color::Black) "With stderr from cargo:");
-            drop(std::io::stderr().write_all(&output.stderr));
-            exit(output.status.code().unwrap_or(1));
-        }
-
-        clrln!(stdout: n (Color::Black) "Done building.");
-
-        let program_name = || -> AhResult<String> {
-            let cargo_toml = std::fs::read_to_string("Cargo.toml")
-                .context("Cargo.toml")?
-                .parse::<Toml>()?;
-            let prefix = if opt.debug {
-                "target/debug/"
-            } else {
-                "target/release/"
-            };
-            let postfix = &opt.name;
-            let _postfix_old = cargo_toml
-                .get("package")
-                .context("no field `package`")?
-                .get("name")
-                .context("no field `package.name`")?
-                .as_str()
-                .context("`package.name` isn't a string")?;
-            Ok(prefix.to_string() + postfix)
-        }()
-        .unwrap_or_else(|err| {
-            clrln!(stdout: b (Color::Red) "Reading `Cargo.toml` error:"; " {}", err);
-            exit(1)
-        });
-
-        clrln!(stdout: n (Color::Black) "Found executable file `{}`.", program_name);
-
-        program_name
+    let program_file_name = compile(&mut stdout, &opt.name, &opt);
+    let checker_file_name = if has_checker {
+        compile(&mut stdout, format!("{}_checker", opt.name).as_ref(), &opt)
+    } else {
+        "internal error".to_string()
     };
 
     println!();
 
     let mut ok_count = 0;
     let mut err_count = 0;
-    for (no, (i, o)) in tests_iterator {
-        use RunErr::*;
-        use RunOk::*;
-        match run_program(&program_name, i, &opt) {
-            Ok(Success(output, duration)) => {
-                let mut print_stderr = opt.stderr;
+    for (no, test) in tests.into_iter().enumerate().map(|(i, x)| (i+1, x)) {
+        let mut collector = run::Collector::new(opt.real_time, true, true, false);
+        let result = match test {
+            test::TokenizedTest::Simple { input, output } => {
+                let run_result = run::run_program(&program_file_name, input, opt.debug, &mut stdout, &mut collector);
+                run_result.map(|duration| (input, duration, output, collector.get_result_output(), collector.is_program_writes_stderr()))
+            },
+            test::TokenizedTest::WithChecker { checker_input, checker_output } => {
+                let run_result = run::run_with_checker(&program_file_name, &checker_file_name, checker_input, opt.debug, &mut stdout, &mut collector);
+                run_result.map(|duration| (checker_input, duration, checker_output, collector.get_result_output(), collector.is_program_writes_stderr()))
+            },
+        };
+        use run::RunErr::*;
+        match result {
+            Ok((input, duration, should_be_output, program_output, is_program_writes_stderr)) => {
                 let mut print_runtime = false;
-                match o {
-                    Some(o) => {
-                        if output_equals(o, &output.stdout) {
+                match should_be_output {
+                    Some(should_be_output) => {
+                        let tokenized_program_output = test::Lines::from(program_output);
+                        if tokenized_program_output == should_be_output {
                             ok_count += 1;
-                            clr!(stdout: b (Color::Green) "Test {} OK", no);
-                            if !output.stderr.is_empty() {
-                                clr!(stdout: ", but with "; (Color::Red) "stderr");
+                            clr!(stdout, b (Color::Green) "Test {} OK", no);
+                            if is_program_writes_stderr {
+                                clr!(stdout, ", but with "; (Color::Red) "stderr");
                             }
                             if opt.time {
-                                clr!(stdout: ", "; (Color::Blue) "run time: "; "{:.1?}", duration);
+                                clr!(stdout, ", "; (Color::Blue) "run time: "; "{:.1?}", duration);
                             }
                             writeln!(stdout).unwrap();
                         } else {
                             err_count += 1;
-                            clrln!(stdout: b (Color::Red) "Test {} ERR", no);
-                            clrln!(stdout: n (Color::Blue) "input:");
-                            stdout.write_all(i).unwrap();
-                            writeln!(stdout).unwrap();
-                            clrln!(stdout: n (Color::Blue) "output:");
+                            clrln!(stdout, b (Color::Red) "Test {} ERR", no);
+                            collector.print(&mut stdout);
 
-                            // TODO improve this thing, remove strings, &str, and do diff on raw [u8]!
-                            let output_stdout = String::from_utf8(output.stdout).unwrap();
-                            let o = String::from_utf8(o.to_vec()).unwrap();
-                            for line in diff::lines(&output_stdout.trim(), &o.trim()) {
+                            clrln!(stdout, n (Color::Blue) "diff with test:");
+                            for line in diff::slice(&tokenized_program_output.0, &should_be_output.0) {
                                 match line {
                                     diff::Result::Left(a) => {
-                                        clrln!(stdout: b n (Color::Green) "+"; (Color::Green) " {}", a)
+                                        clrln!(stdout, b n (Color::Green) "+"; (Color::Green) " {}", a)
                                     }
                                     diff::Result::Both(a, _) => println!("  {}", a),
                                     diff::Result::Right(a) => {
-                                        clrln!(stdout: b n (Color::Red) "-"; (Color::Red) " {}", a)
+                                        clrln!(stdout, b n (Color::Red) "-"; (Color::Red) " {}", a)
                                     }
                                 }
                             }
-                            print_stderr = true;
                         }
                     }
                     None => {
-                        clrln!(stdout: b (Color::Yellow) "Test {} testing", no);
-                        clrln!(stdout: n (Color::Blue) "input:");
-                        stdout.write_all(i).unwrap();
+                        clrln!(stdout, b (Color::Yellow) "Test {} testing", no);
+                        clrln!(stdout, n (Color::Blue) "input:");
+                        stdout.write_all(input).unwrap();
                         writeln!(stdout).unwrap();
-                        clrln!(stdout: n (Color::Blue) "output:");
-                        stdout.write_all(&output.stdout).unwrap();
-                        writeln!(stdout).unwrap();
-                        print_stderr = true;
+                        clrln!(stdout, n (Color::Blue) "output:");
+                        collector.print(&mut stdout);
                         print_runtime = opt.time;
                     }
                 }
-                if print_stderr && output.stderr.iter().any(|x| !x.is_ascii_whitespace()) {
-                    writeln!(stdout).unwrap();
-                    clrln!(stdout: n (Color::Blue) "stderr:");
-                    stdout.write_all(&output.stderr).unwrap();
-                    writeln!(stdout).unwrap();
-                }
                 if print_runtime {
-                    clrln!(stdout: (Color::Blue) "Run time: "; "{:.1?}", duration);
+                    clrln!(stdout, (Color::Blue) "Run time: "; "{:.1?}", duration);
                 }
             }
-            Err(Crash(output)) => {
+            Err(Crash) => {
                 err_count += 1;
-                clrln!(stdout: b (Color::Red) "Test {} crashed", no);
-                clrln!(stdout: n (Color::Blue) "input:");
-                stdout.write_all(i).unwrap();
-                writeln!(stdout).unwrap();
-                clrln!(stdout: n (Color::Blue) "output:");
-                stdout.write_all(&output.stdout).unwrap();
-                writeln!(stdout).unwrap();
-                clrln!(stdout: n (Color::Blue) "stderr:");
-                stdout.write_all(&output.stderr).unwrap();
-                writeln!(stdout).unwrap();
+                clrln!(stdout, b (Color::Red) "Test {} crashed", no);
+
+                if !opt.real_time {
+                    collector.print(&mut stdout);
+                }
             }
             Err(NotRun(error)) => {
                 err_count += 1;
-                clrln!(stdout: b (Color::Red) "Test {} won't run:", no; " {}", error);
+                clrln!(stdout, b (Color::Red) "Test {} won't run:", no; " {}", error);
             }
             Err(DuringRun(error)) => {
                 err_count += 1;
-                clrln!(stdout: b (Color::Red) "Test {} unexpected error during run:", no; " {}", error);
+                clrln!(stdout, b (Color::Red) "Test {} unexpected error during run:", no; " {}", error);
             }
             Err(IoError(error)) => {
                 err_count += 1;
-                clrln!(stdout: b (Color::Red) "Test {} i/o error:", no; " {}", error);
+                clrln!(stdout, b (Color::Red) "Test {} i/o error:", no; " {}", error);
             }
             Err(InternalError) => {
                 err_count += 1;
-                clrln!(stdout: b (Color::Red) "Test {} internal error.", no);
+                clrln!(stdout, b (Color::Red) "Test {} internal error.", no);
             }
         }
     }
@@ -385,8 +240,8 @@ fn main() {
     writeln!(stdout).unwrap();
 
     if err_count == 0 {
-        clrln!(stdout: b u (Color::Green) "OK all {} tests.", ok_count);
+        clrln!(stdout, b u (Color::Green) "OK all {} tests.", ok_count);
     } else {
-        clrln!(stdout: b u (Color::Green) "OK"; b (Color::Green) ":"; " {} tests, ", ok_count; b u (Color::Red) "ERR";  b (Color::Red) ":"; " {} tests.", err_count);
+        clrln!(stdout, b u (Color::Green) "OK"; b (Color::Green) ":"; " {} tests, ", ok_count; b u (Color::Red) "ERR";  b (Color::Red) ":"; " {} tests.", err_count);
     }
 }
