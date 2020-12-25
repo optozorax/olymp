@@ -78,15 +78,10 @@ impl<'a> From<&'a [u8]> for Lines<'a> {
 
 impl fmt::Display for Tokens<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let len = self.0.len();
-        for (index, i) in self.0.iter().enumerate() {
-            let s = std::str::from_utf8(i).unwrap();
-            write!(f, "{}", s)?;
-            if index + 1 != len {
-                write!(f, " ")?;
-            }
-        }
-        Ok(())
+        write!(f, "{}", crate::display::Joined {
+            elements: self.0.iter().map(|x| std::str::from_utf8(x).unwrap()),
+            by: " ",
+        })
     }
 }
 

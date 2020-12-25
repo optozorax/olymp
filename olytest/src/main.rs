@@ -9,14 +9,76 @@ use termcolor_macro::*;
 
 use olytest::run;
 use olytest::test;
+use olytest::codeforces;
+use olytest::files;
+use olytest::display;
+
+/// Program to run tests as easy and as fast as possible during competitive programming.
+///
+/// Write tests for program in file `tests/<name>.test`, when each test separated by `\` symbol. Then, inside test, input and output may be separated by '~' or '%'.
+/// * '~' is used, when you need simple testing.
+/// * '%' is used, when you need checker.
+/// * This symbols can be escaped by writing twice: "~~", "%%", "\\".
+/// * If none of this symbols is on the test, then output for program just printed on screen for visual testing.
+#[derive(Debug, StructOpt)]
+#[structopt(name = "olytest", author = "Ilya Sheprut a.k.a. optozorax")]
+enum Opt {
+    /// Init this folder with provided executables names.
+    #[structopt(visible_alias = "i")]
+    Init { files: Vec<String> },
+
+    /// Init this folder from codeforces.com contest. Names and tests will be parsed from contest page.
+    #[structopt(visible_alias = "cf")]
+    CodeForces { number: u64 },
+
+    /// Run tests for provided executable.
+    #[structopt(visible_alias = "t")]
+    Test {
+        /// Name of binary to run. Examples `a`, `b`, `e1`.
+        name: String,
+
+        #[structopt(flatten)]
+        settings: TestSettings,
+    },
+
+    /// Run tests for all executables.
+    #[structopt(visible_alias = "ta")]
+    TestAll {
+        #[structopt(flatten)]
+        settings: TestSettings,
+    },
+
+    /// Generate executable for given name.
+    #[structopt(visible_alias = "ge")]
+    GenerateExecutable {
+        /// Name of binary to generate. Examples `a`, `b`, `e1`.
+        name: String,
+    },
+
+    /// Generate checker for executable with given name.
+    #[structopt(visible_alias = "gc")]
+    GenerateChecker {
+        /// Name of binary to generate checker for. Example: `gc a` will generate `a_checker`.
+        name: String,
+    },
+
+    /// Remove existing binary from project.
+    #[structopt(visible_alias = "re")]
+    RemoveExecutable {
+        /// Name of binary to remove.        
+        name: String,
+    },
+
+    /// Remove existing checker from project. Example: `rc a` will remove `a_checker`.
+    #[structopt(visible_alias = "rc")]
+    RemoveChecker {
+        /// Name of binary to remove checker for.
+        name: String,
+    },
+}
 
 #[derive(Debug, StructOpt)]
-#[structopt(
-    name = "olytest",
-    about = "Program to run tests as easy and as fast as possible during competitive programming.\nWrite tests for program in file `tests/<name>.test`, when each test separated by `\\` symbol. Then, inside test, input and output may be separated by '~' or '%'.\n * '~' is used, when you need simple testing.\n * '%' is used, when you need checker.\n * This symbols can be escaped by writing twice: \"~~\", \"%%\", \"\\\\\".\n * If none of this symbols is on the test, then output for program just printed on screen for visual testing.",
-    author = "Ilya Sheprut a.k.a. optozorax"
-)]
-struct Opt {
+struct TestSettings {
     /// Run executable in debug mode, and with env `RUST_BACKTRACE=full`.
     #[structopt(short, long)]
     debug: bool,
@@ -40,9 +102,6 @@ struct Opt {
     /// With this option, output of program and checker will be escaped: line endings become '\n' and etc.
     #[structopt(short = "s", long)]
     escape_output: bool,
-
-    /// Name of binary to run. Examples `a`, `b`, `e1`.
-    name: String,
 }
 
 struct ReadFileError<'a> {
@@ -59,7 +118,7 @@ fn read_file(file: &str) -> Result<Vec<u8>, ReadFileError> {
     Ok(result)
 }
 
-fn compile<T: WriteColor>(stdout: &mut T, name: &str, opt: &Opt) -> String {
+fn compile<T: WriteColor>(stdout: &mut T, name: &str, opt: &TestSettings) -> String {
     let output = if opt.debug {
         clrln!(stdout, n (Color::Black)"Building `{}` in debug...", name);
         Command::new("cargo")
@@ -101,25 +160,19 @@ fn compile<T: WriteColor>(stdout: &mut T, name: &str, opt: &Opt) -> String {
     prefix.to_string() + postfix
 }
 
-fn format<T: WriteColor>(stdout: &mut T, opt: &Opt) {
-    if !opt.not_format {
-        clrln!(stdout, n (Color::Black) "Formatting...");
-        Command::new("cargo")
-            .arg("fmt")
-            .output()
-            .map(drop)
-            .unwrap_or_else(|err| {
-                clrln!(stdout, b (Color::Red) "Format error:"; "{}", err);
-            });
-    }
+fn format<T: WriteColor>(stdout: &mut T) {
+    clrln!(stdout, n (Color::Black) "Formatting...");
+    Command::new("cargo")
+        .arg("fmt")
+        .output()
+        .map(drop)
+        .unwrap_or_else(|err| {
+            clrln!(stdout, b (Color::Red) "Format error:"; "{}", err);
+        });
 }
 
-fn main() {
-    let opt = Opt::from_args();
-
-    let mut stdout = StandardStream::stdout(ColorChoice::Auto);
-
-    let test_file_name = format!("tests/{}.test", opt.name);
+fn test<Out: WriteColor>(mut stdout: &mut Out, name: &str, opt: &TestSettings) {
+    let test_file_name = format!("tests/{}.test", name);
     let test_file_content = read_file(test_file_name.as_str()).unwrap_or_else(|err| {
         match err.error.kind() {
             std::io::ErrorKind::NotFound => {
@@ -141,12 +194,12 @@ fn main() {
     let has_checker = test::has_checker(&tests);
 
     if !opt.not_format {
-        format(&mut stdout, &opt);
+        format(&mut stdout);
     }
 
-    let program_file_name = compile(&mut stdout, &opt.name, &opt);
+    let program_file_name = compile(&mut stdout, &name, &opt);
     let checker_file_name = if has_checker {
-        compile(&mut stdout, format!("{}_checker", opt.name).as_ref(), &opt)
+        compile(&mut stdout, format!("{}_checker", name).as_ref(), &opt)
     } else {
         "internal error".to_string()
     };
@@ -189,7 +242,7 @@ fn main() {
                     &mut stdout,
                     &mut collector,
                 );
-                (checker_input, 
+                (checker_input,
                     run_result.map(|duration| {
                     (
                         duration,
@@ -203,11 +256,11 @@ fn main() {
         };
         use run::RunErr::*;
         struct TestResult<'a> {
-            verdict_color: Color, 
-            verdict: Cow<'static, str>, 
-            is_program_writes_stderr: bool, 
-            is_print_input_output: bool, 
-            should_be_output_diff: Option<(test::Lines<'a>, test::Lines<'a>)>,   
+            verdict_color: Color,
+            verdict: Cow<'static, str>,
+            is_program_writes_stderr: bool,
+            is_print_input_output: bool,
+            should_be_output_diff: Option<(test::Lines<'a>, test::Lines<'a>)>,
             time: Option<std::time::Duration>,
         }
         let TestResult { verdict_color, verdict, is_program_writes_stderr, is_print_input_output, should_be_output_diff, time} = match result {
@@ -219,7 +272,7 @@ fn main() {
                             ok_count += 1;
                             TestResult {
                                 verdict_color: Color::Green,
-                                verdict: Cow::Borrowed("OK"),   
+                                verdict: Cow::Borrowed("OK"),
                                 is_program_writes_stderr,
                                 is_print_input_output: opt.show_output,
                                 should_be_output_diff: None,
@@ -233,7 +286,7 @@ fn main() {
                             err_count += 1;
                             TestResult {
                                 verdict_color: Color::Red,
-                                verdict: Cow::Borrowed("ERR"),   
+                                verdict: Cow::Borrowed("ERR"),
                                 is_program_writes_stderr,
                                 is_print_input_output: true,
                                 should_be_output_diff: Some((tokenized_program_output, should_be_output)),
@@ -248,7 +301,7 @@ fn main() {
                     None => {
                         TestResult {
                             verdict_color: Color::Yellow,
-                            verdict: Cow::Borrowed("CHECK"),   
+                            verdict: Cow::Borrowed("CHECK"),
                             is_program_writes_stderr,
                             is_print_input_output: true,
                             should_be_output_diff: None,
@@ -265,7 +318,7 @@ fn main() {
                 err_count += 1;
                 TestResult {
                     verdict_color: Color::Red,
-                    verdict: Cow::Borrowed("crashed"),   
+                    verdict: Cow::Borrowed("crashed"),
                     is_program_writes_stderr: false,
                     is_print_input_output: true,
                     should_be_output_diff: None,
@@ -276,7 +329,7 @@ fn main() {
                 err_count += 1;
                 TestResult {
                     verdict_color: Color::Red,
-                    verdict: Cow::Owned(format!("won't run: {:?}", error)),   
+                    verdict: Cow::Owned(format!("won't run: {:?}", error)),
                     is_program_writes_stderr: false,
                     is_print_input_output: true,
                     should_be_output_diff: None,
@@ -287,7 +340,7 @@ fn main() {
                 err_count += 1;
                 TestResult {
                     verdict_color: Color::Red,
-                    verdict: Cow::Owned(format!("unexpected error during run: {:?}", error)),   
+                    verdict: Cow::Owned(format!("unexpected error during run: {:?}", error)),
                     is_program_writes_stderr: false,
                     is_print_input_output: true,
                     should_be_output_diff: None,
@@ -309,7 +362,7 @@ fn main() {
                 err_count += 1;
                 TestResult {
                     verdict_color: Color::Red,
-                    verdict: Cow::Borrowed("internal error"),   
+                    verdict: Cow::Borrowed("internal error"),
                     is_program_writes_stderr: false,
                     is_print_input_output: true,
                     should_be_output_diff: None,
@@ -331,12 +384,12 @@ fn main() {
             writeln!(stdout).unwrap();
             clrln!(stdout, n (Color::Blue) "output:");
             collector.print(&mut stdout);
-            writeln!(stdout).unwrap();    
+            writeln!(stdout).unwrap();
         }
         if let Some((tokenized_program_output, should_be_output)) = should_be_output_diff {
             clrln!(stdout, n (Color::Blue) "diff with test:");
             for line in diff::slice(&tokenized_program_output.0, &should_be_output.0)
-                
+
             {
                 match line {
                     diff::Result::Left(a) =>
@@ -357,4 +410,73 @@ fn main() {
     } else {
         clrln!(stdout, b u (Color::Green) "OK"; b (Color::Green) ":"; " {} tests, ", ok_count; b u (Color::Red) "ERR";  b (Color::Red) ":"; " {} tests.", err_count);
     }
+}
+
+fn main() -> anyhow::Result<()> {
+    use anyhow::Context;
+    let mut stdout = StandardStream::stdout(ColorChoice::Auto);
+    let opt = Opt::from_args();
+
+    match opt {
+        Opt::Init { files } => {
+            clrln!(stdout, n (Color::Black) "Initialize files...");
+            files::init_common().context("Error in common files init")?;
+            for name in files {
+                clrln!(stdout, n (Color::Black) "Create executable `{}`...", name);
+                files::create_executable(&name).with_context(|| format!("Error during creation of executable `{}`", name))?;
+            }
+        },
+        Opt::CodeForces { number } => {
+            clrln!(stdout, n (Color::Black) "Initialize files...");
+            files::init_common().context("common files init")?;
+            let problems = codeforces::get_problems(number).context("Can't get codeforces problems")?;
+            clrln!(stdout, b (Color::Green) "Found problems: "; " {}", display::Joined {
+                elements: problems.iter(),
+                by: " "
+            });
+            for name in &problems {
+                clrln!(stdout, n (Color::Black) "Create executable `{}`...", name);
+                files::create_executable(&name).with_context(|| format!("Error during creation of executable `{}`", name))?;
+            }
+            for name in &problems {
+                match codeforces::get_tests(number, &name) {
+                    Ok(tests) => {
+                        if tests.0.is_empty() {
+                            clrln!(stdout, (Color::Red) "Tests not found for `{}`.", name);
+                        } else {
+                            clrln!(stdout, n (Color::Black) "Write found tests for `{}`...", name);
+                            files::write_test(name, tests).unwrap();
+                        }        
+                    },
+                    Err(err) => {
+                        clrln!(stdout, b (Color::Red) "Error during getting test for `{}`:", name; "{:?}", err);    
+                    },
+                }
+            }
+        },
+        Opt::Test { name, settings } => {
+            test(&mut stdout, &name, &settings);
+        },
+        Opt::TestAll { settings } => {
+            let all_executables = files::get_current_executables().context("Error during get list of all executables")?;
+            for name in all_executables {
+                clrln!(stdout, b u (Color::Cyan) "Testing executable `{}`.", name);    
+                test(&mut stdout, &name, &settings);
+                writeln!(stdout).unwrap();
+            }
+        },
+        Opt::GenerateExecutable { name } => {
+            files::create_executable(&name).with_context(|| format!("Error during creation of executable `{}`", name))?;
+        },
+        Opt::GenerateChecker { name } => {
+            files::create_checker(&name).with_context(|| format!("Error during creation of checker `{}_checker`", name))?;
+        },
+        Opt::RemoveExecutable { name } => {
+            files::remove_executable(&name).with_context(|| format!("Error during removing executable `{}`", name))?;
+        },
+        Opt::RemoveChecker { name } => {
+            files::remove_checker(&name).with_context(|| format!("Error during removing checker `{}_checker`", name))?;
+        },
+    }
+    Ok(())
 }

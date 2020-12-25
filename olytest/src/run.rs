@@ -39,6 +39,7 @@ fn print_program_stderr<T: WriteColor>(output: &mut T) {
     clr!(output, b n (Color::Red) "(PROGRAM) ");
 }
 
+#[allow(clippy::too_many_arguments)]
 fn print_out_with_checker<T: WriteColor>(
     output: &mut T,
     data: &[u8],
@@ -289,6 +290,7 @@ pub async fn run_with_checker<T: WriteColor>(
                     }
                 } else {
                     checker_stdout_closed = true;
+                    program_stdin.shutdown().await.unwrap();
                 }
             },
             readed = checker_stderr.read_buf(&mut buffer2) => {
@@ -314,6 +316,7 @@ pub async fn run_with_checker<T: WriteColor>(
                     }
                 } else {
                     program_stdout_closed = true;
+                    checker_stdin.shutdown().await.unwrap();
                 }
             },
             readed = program_stderr.read_buf(&mut buffer4) => {
