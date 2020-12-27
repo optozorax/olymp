@@ -22,10 +22,14 @@ impl fmt::Display for CodeforcesTest {
 
 impl fmt::Display for CodeforcesTests {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", crate::display::Joined {
-            elements: self.0.iter(),
-            by: "\n\\\n",
-        })
+        write!(
+            f,
+            "{}",
+            crate::display::Joined {
+                elements: self.0.iter(),
+                by: "\n\\\n",
+            }
+        )
     }
 }
 
@@ -44,7 +48,7 @@ pub fn get_problems(contest_no: u64) -> Result<Vec<String>, reqwest::Error> {
         .map(|x| x.get(1).unwrap().as_str()) // unwrap is acceptable because of static regex structure
         .collect::<BTreeSet<&str>>()
         .into_iter()
-        .map(|x| x.to_string())
+        .map(|x| x.to_lowercase())
         .collect::<Vec<String>>())
 }
 
@@ -65,8 +69,10 @@ pub fn get_tests(contest_no: u64, problem_name: &str) -> Result<CodeforcesTests,
     let output = document.select(&output_selector).map(|x| {
         html_escape::decode_html_entities(&x.inner_html().replace("<br>", "\n")).to_string()
     });
-    Ok(CodeforcesTests(input
-        .zip(output)
-        .map(|(input, output)| CodeforcesTest { input, output })
-        .collect::<Vec<_>>()))
+    Ok(CodeforcesTests(
+        input
+            .zip(output)
+            .map(|(input, output)| CodeforcesTest { input, output })
+            .collect::<Vec<_>>(),
+    ))
 }

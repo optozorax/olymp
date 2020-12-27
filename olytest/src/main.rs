@@ -7,11 +7,11 @@ use structopt::StructOpt;
 use termcolor::{Color, ColorChoice, StandardStream, WriteColor};
 use termcolor_macro::*;
 
+use olytest::codeforces;
+use olytest::display;
+use olytest::files;
 use olytest::run;
 use olytest::test;
-use olytest::codeforces;
-use olytest::files;
-use olytest::display;
 
 /// Program to run tests as easy and as fast as possible during competitive programming.
 ///
@@ -29,7 +29,7 @@ enum Opt {
 
     /// Init this folder from codeforces.com contest. Names and tests will be parsed from contest page.
     #[structopt(visible_alias = "cf")]
-    CodeForces { number: u64 },
+    Codeforces { number: u64 },
 
     /// Run tests for provided executable.
     #[structopt(visible_alias = "t")]
@@ -102,6 +102,9 @@ struct TestSettings {
     /// With this option, output of program and checker will be escaped: line endings become '\n' and etc.
     #[structopt(short = "s", long)]
     escape_output: bool,
+    // / Path to template folder, from
+    // #[structopt(short, long, env = "OLYTEST_TEMPLATE_PATH", parse(from_os_str))]
+    // template_path: PathBuf,
 }
 
 struct ReadFileError<'a> {
@@ -197,6 +200,14 @@ fn test<Out: WriteColor>(mut stdout: &mut Out, name: &str, opt: &TestSettings) {
         format(&mut stdout);
     }
 
+    files::generate_without_include(&files::format_path_buf(&["src", &name], "rs")).unwrap_or_else(|err| {
+        match err {
+            files::GenerateError::OtherFiles(err) => clrln!(stdout, b (Color::Red) "During generation of file without include's."; " {}", err),
+            files::GenerateError::IncludeError(err) => clrln!(stdout, b (Color::Red) "File for include not found: "; " {}", err.file.display()),
+        }
+        exit(1)
+    });
+
     let program_file_name = compile(&mut stdout, &name, &opt);
     let checker_file_name = if has_checker {
         compile(&mut stdout, format!("{}_checker", name).as_ref(), &opt)
@@ -219,15 +230,16 @@ fn test<Out: WriteColor>(mut stdout: &mut Out, name: &str, opt: &TestSettings) {
                     &mut stdout,
                     &mut collector,
                 );
-                (input,
-                run_result.map(|duration| {
-                    (
-                        duration,
-                        output,
-                        collector.get_result_output(),
-                        collector.is_program_writes_stderr(),
-                    )
-                })
+                (
+                    input,
+                    run_result.map(|duration| {
+                        (
+                            duration,
+                            output,
+                            collector.get_result_output(),
+                            collector.is_program_writes_stderr(),
+                        )
+                    }),
                 )
             }
             test::TokenizedTest::WithChecker {
@@ -242,15 +254,16 @@ fn test<Out: WriteColor>(mut stdout: &mut Out, name: &str, opt: &TestSettings) {
                     &mut stdout,
                     &mut collector,
                 );
-                (checker_input,
+                (
+                    checker_input,
                     run_result.map(|duration| {
-                    (
-                        duration,
-                        checker_output,
-                        collector.get_result_output(),
-                        collector.is_program_writes_stderr(),
-                    )
-                })
+                        (
+                            duration,
+                            checker_output,
+                            collector.get_result_output(),
+                            collector.is_program_writes_stderr(),
+                        )
+                    }),
                 )
             }
         };
@@ -263,7 +276,14 @@ fn test<Out: WriteColor>(mut stdout: &mut Out, name: &str, opt: &TestSettings) {
             should_be_output_diff: Option<(test::Lines<'a>, test::Lines<'a>)>,
             time: Option<std::time::Duration>,
         }
-        let TestResult { verdict_color, verdict, is_program_writes_stderr, is_print_input_output, should_be_output_diff, time} = match result {
+        let TestResult {
+            verdict_color,
+            verdict,
+            is_program_writes_stderr,
+            is_print_input_output,
+            should_be_output_diff,
+            time,
+        } = match result {
             Ok((duration, should_be_output, program_output, is_program_writes_stderr)) => {
                 let tokenized_program_output = test::Lines::from(program_output);
                 match should_be_output {
@@ -276,11 +296,7 @@ fn test<Out: WriteColor>(mut stdout: &mut Out, name: &str, opt: &TestSettings) {
                                 is_program_writes_stderr,
                                 is_print_input_output: opt.show_output,
                                 should_be_output_diff: None,
-                                time: if opt.time {
-                                    Some(duration)
-                                } else {
-                                    None
-                                },
+                                time: if opt.time { Some(duration) } else { None },
                             }
                         } else {
                             err_count += 1;
@@ -289,29 +305,22 @@ fn test<Out: WriteColor>(mut stdout: &mut Out, name: &str, opt: &TestSettings) {
                                 verdict: Cow::Borrowed("ERR"),
                                 is_program_writes_stderr,
                                 is_print_input_output: true,
-                                should_be_output_diff: Some((tokenized_program_output, should_be_output)),
-                                time: if opt.time {
-                                    Some(duration)
-                                } else {
-                                    None
-                                },
+                                should_be_output_diff: Some((
+                                    tokenized_program_output,
+                                    should_be_output,
+                                )),
+                                time: if opt.time { Some(duration) } else { None },
                             }
                         }
                     }
-                    None => {
-                        TestResult {
-                            verdict_color: Color::Yellow,
-                            verdict: Cow::Borrowed("CHECK"),
-                            is_program_writes_stderr,
-                            is_print_input_output: true,
-                            should_be_output_diff: None,
-                            time: if opt.time {
-                                Some(duration)
-                            } else {
-                                None
-                            },
-                        }
-                    }
+                    None => TestResult {
+                        verdict_color: Color::Yellow,
+                        verdict: Cow::Borrowed("CHECK"),
+                        is_program_writes_stderr,
+                        is_print_input_output: true,
+                        should_be_output_diff: None,
+                        time: if opt.time { Some(duration) } else { None },
+                    },
                 }
             }
             Err(Crash) => {
@@ -388,15 +397,15 @@ fn test<Out: WriteColor>(mut stdout: &mut Out, name: &str, opt: &TestSettings) {
         }
         if let Some((tokenized_program_output, should_be_output)) = should_be_output_diff {
             clrln!(stdout, n (Color::Blue) "diff with test:");
-            for line in diff::slice(&tokenized_program_output.0, &should_be_output.0)
-
-            {
+            for line in diff::slice(&tokenized_program_output.0, &should_be_output.0) {
                 match line {
-                    diff::Result::Left(a) =>
-                        clrln!(stdout, b n (Color::Green) "+"; (Color::Green) " {}", a),
+                    diff::Result::Left(a) => {
+                        clrln!(stdout, b n (Color::Green) "+"; (Color::Green) " {}", a)
+                    }
                     diff::Result::Both(a, _) => println!("  {}", a),
-                    diff::Result::Right(a) =>
-                        clrln!(stdout, b n (Color::Red) "-"; (Color::Red) " {}", a),
+                    diff::Result::Right(a) => {
+                        clrln!(stdout, b n (Color::Red) "-"; (Color::Red) " {}", a)
+                    }
                 }
             }
             writeln!(stdout).unwrap();
@@ -423,20 +432,23 @@ fn main() -> anyhow::Result<()> {
             files::init_common().context("Error in common files init")?;
             for name in files {
                 clrln!(stdout, n (Color::Black) "Create executable `{}`...", name);
-                files::create_executable(&name).with_context(|| format!("Error during creation of executable `{}`", name))?;
+                files::create_executable(&name)
+                    .with_context(|| format!("Error during creation of executable `{}`", name))?;
             }
-        },
-        Opt::CodeForces { number } => {
+        }
+        Opt::Codeforces { number } => {
             clrln!(stdout, n (Color::Black) "Initialize files...");
             files::init_common().context("common files init")?;
-            let problems = codeforces::get_problems(number).context("Can't get codeforces problems")?;
+            let problems =
+                codeforces::get_problems(number).context("Can't get codeforces problems")?;
             clrln!(stdout, b (Color::Green) "Found problems: "; " {}", display::Joined {
                 elements: problems.iter(),
                 by: " "
             });
             for name in &problems {
                 clrln!(stdout, n (Color::Black) "Create executable `{}`...", name);
-                files::create_executable(&name).with_context(|| format!("Error during creation of executable `{}`", name))?;
+                files::create_executable(&name)
+                    .with_context(|| format!("Error during creation of executable `{}`", name))?;
             }
             for name in &problems {
                 match codeforces::get_tests(number, &name) {
@@ -445,38 +457,43 @@ fn main() -> anyhow::Result<()> {
                             clrln!(stdout, (Color::Red) "Tests not found for `{}`.", name);
                         } else {
                             clrln!(stdout, n (Color::Black) "Write found tests for `{}`...", name);
-                            files::write_test(name, tests).unwrap();
-                        }        
-                    },
+                            files::write_test(name, tests.to_string()).unwrap();
+                        }
+                    }
                     Err(err) => {
-                        clrln!(stdout, b (Color::Red) "Error during getting test for `{}`:", name; "{:?}", err);    
-                    },
+                        clrln!(stdout, b (Color::Red) "Error during getting test for `{}`:", name; "{:?}", err);
+                    }
                 }
             }
-        },
+        }
         Opt::Test { name, settings } => {
             test(&mut stdout, &name, &settings);
-        },
+        }
         Opt::TestAll { settings } => {
-            let all_executables = files::get_current_executables().context("Error during get list of all executables")?;
+            let all_executables = files::get_current_executables()
+                .context("Error during get list of all executables")?;
             for name in all_executables {
-                clrln!(stdout, b u (Color::Cyan) "Testing executable `{}`.", name);    
+                clrln!(stdout, b u (Color::Cyan) "Testing executable `{}`.", name);
                 test(&mut stdout, &name, &settings);
                 writeln!(stdout).unwrap();
             }
-        },
+        }
         Opt::GenerateExecutable { name } => {
-            files::create_executable(&name).with_context(|| format!("Error during creation of executable `{}`", name))?;
-        },
+            files::create_executable(&name)
+                .with_context(|| format!("Error during creation of executable `{}`", name))?;
+        }
         Opt::GenerateChecker { name } => {
-            files::create_checker(&name).with_context(|| format!("Error during creation of checker `{}_checker`", name))?;
-        },
+            files::create_checker(&name)
+                .with_context(|| format!("Error during creation of checker `{}_checker`", name))?;
+        }
         Opt::RemoveExecutable { name } => {
-            files::remove_executable(&name).with_context(|| format!("Error during removing executable `{}`", name))?;
-        },
+            files::remove_executable(&name)
+                .with_context(|| format!("Error during removing executable `{}`", name))?;
+        }
         Opt::RemoveChecker { name } => {
-            files::remove_checker(&name).with_context(|| format!("Error during removing checker `{}_checker`", name))?;
-        },
+            files::remove_checker(&name)
+                .with_context(|| format!("Error during removing checker `{}_checker`", name))?;
+        }
     }
     Ok(())
 }

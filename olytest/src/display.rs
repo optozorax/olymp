@@ -1,6 +1,6 @@
 use std::fmt;
 
-pub struct Joined<'a, I>{
+pub struct Joined<'a, I> {
     pub elements: I,
     pub by: &'a str,
 }
