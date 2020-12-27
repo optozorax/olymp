@@ -6,69 +6,70 @@
  *****************************************************************************
  */
 
+fn moves_up(token: (u64, u64), d: u64, k: u64) -> Option<u64> {
+	let result = ((d as f64 * d as f64 - token.0 as f64 * token.0 as f64).sqrt().floor() as u64 - token.1) / k;
+	if result == 0 { None } else { Some(result) }
+}
+
+fn moves_right(token: (u64, u64), d: u64, k: u64) -> Option<u64> {
+	let result = ((d as f64 * d as f64 - token.1 as f64 * token.1 as f64).sqrt().floor() as u64 - token.0) / k;
+	if result == 0 { None } else { Some(result) }
+}
+
+fn is_utkarsh_wins(d: u64, k: u64) -> bool {
+	let mut token = (0, 0);
+	loop {
+		// Ashish
+		match (moves_up(token, d, k), moves_right(token, d, k)) {
+			(Some(up), Some(right)) => {
+				if up > right {
+					token.1 += k
+				} else {
+					token.0 += k
+				}
+			},
+			(Some(_), None) => token.1 += k,
+			(None, Some(_)) => token.0 += k,
+			(None, None) => return true,
+		}
+
+		// Utkarish
+		match (moves_up(token, d, k), moves_right(token, d, k)) {
+			(Some(up), Some(right)) => {
+				if up > right {
+					token.1 += k
+				} else {
+					token.0 += k
+				}
+			},
+			(Some(_), None) => token.1 += k,
+			(None, Some(_)) => token.0 += k,
+			(None, None) => return false,
+		}
+	}
+}
+
 pub fn main() {
 	// ----------------------------- Fast IO ------------------------------ //
 	let stdout = stdout();
 	let mut writer = BufWriter::new(stdout.lock());
-	macro_rules! print { ($($x:tt)*) => { write!(writer, $($x)*).unwrap() }; }
 	macro_rules! println { ($($x:tt)*) => { writeln!(writer, $($x)*).unwrap() }; }
-	#[rustfmt::skip] macro_rules! flush { ($($x:tt)*) => { writer.flush().unwrap() }; }
 
 	let input = stdin();
 	let mut scanner = Scanner::new(input.lock().bytes().map(|x| x.unwrap()));
 	#[rustfmt::skip] macro_rules! read { ($t:tt) => { scanner.read::<$t>() }; }
 	// -------------------------------------------------------------------- //
 
-	let count = read!(usize);
-
-	enum Get {
-		Xor,
-		And,
-	}
-
-	let mut get = |kind: Get, i: usize, j: usize| -> usize {
-		let s = match kind {
-			Get::Xor => "XOR",
-			Get::And => "AND",
-		};
-		println!("{} {} {}", s, i + 1, j + 1);
-		flush!();
-		read!(usize)
-	};
-
-	let xored = {
-		let mut result: Vec<usize> = Vec::new();
-		for i in 1..count {
-			result.push(get(Get::Xor, 0, i))
+	let count: i64 = read!(i64);
+	for _ in 0..count {
+		let d = read!(u64);
+		let k = read!(u64);
+		if is_utkarsh_wins(d, k) {
+			println!("Utkarsh");
+		} else {
+			println!("Ashish");
 		}
-		result
-	};
-
-	let first = if let Some(zero_pos) = xored.iter().position(|x| *x == 0) {
-		// there is same value as first
-		xored[zero_pos] ^ get(Get::And, 0, zero_pos + 1)
-	} else if let Some((a, b)) = xored
-		.iter()
-		.enumerate()
-		.duplicates_with_vec_by(count, |(_, value)| *value)
-		.map(|(a, b)| (a.0, b.0))
-		.next()
-	{
-		// there is two same values
-		xored[a] ^ get(Get::And, a + 1, b + 1)
-	} else {
-		// there is all different numbers
-		let a = get(Get::And, 0, xored.iter().position(|x| *x == 1).unwrap() + 1);
-		let b = get(Get::And, 0, xored.iter().position(|x| *x == 2).unwrap() + 1);
-		a | b
-	};
-
-	print!("! {}", first);
-	for i in xored {
-		print!(" {}", i ^ first);
 	}
-	println!();
-	flush!();
 }
 
 //----------------------------------------------------------------------------
@@ -149,42 +150,5 @@ impl<I: Iterator<Item = u8>> Scanner<I> {
         self.iter.next();
         result
     }
-}
-
-trait FindDuplicatesWithVecBy: Sized {
-	fn duplicates_with_vec_by<T: Clone, F: Fn(T) -> usize>(self, vec_size: usize, f: F) -> DuplicatesWithVecBy<Self, F, T> where Self: std::iter::Iterator<Item = T>;
-}
-
-impl<I: Iterator> FindDuplicatesWithVecBy for I {
-	fn duplicates_with_vec_by<T: Clone, F: Fn(T) -> usize>(self, vec_size: usize, f: F) -> DuplicatesWithVecBy<Self, F, T> where Self: std::iter::Iterator<Item = T> {
-		DuplicatesWithVecBy {
-			vec: vec![None; vec_size],
-			iter: self,
-			f,
-		}
-	}
-}
-
-struct DuplicatesWithVecBy<I: Iterator<Item = T>, F: Fn(T) -> usize, T: Clone> {
-	vec: Vec<Option<T>>,
-	iter: I,
-	f: F,
-}
-
-impl<I: Iterator<Item = T>, F: Fn(T) -> usize, T: Clone> Iterator for DuplicatesWithVecBy<I, F, T> {
-	type Item = (T, T);
-
-	fn next(&mut self) -> Option<Self::Item> {
-		while let Some(elem) = self.iter.next() {
-			let pos = (self.f)(elem.clone());
-			dbg!(pos);
-			if let Some(exists) = &self.vec[pos] {
-				return Some((exists.clone(), elem))
-			} else {
-				self.vec[pos] = Some(elem);
-			}
-		}
-		None
-	}
 }
 

@@ -430,7 +430,7 @@ pub async fn run_program<T: WriteColor>(
             },
         };
         if let Ok(Some(status)) = program.try_wait() {
-            if status.success() && stdout_closed && stderr_closed {
+            if stdout_closed && stderr_closed {
                 break status;
             }
         }

@@ -1,5 +1,3 @@
-use std::io::BufRead;
-
 fn get_min_divisor(n: i64) -> Option<i64> {
 	for i in (2..=((n as f64).sqrt() as i64 + 5)).filter(|x| *x < n) {
 		if n % i == 0 {
@@ -27,19 +25,28 @@ fn get_answer(n: i64, depth: i64) -> i64 {
 	}
 }
 
-use std::str::FromStr;
-
-fn read<T: FromStr, I: Iterator<Item = std::io::Result<String>>>(i: &mut I) -> T
-where <T as std::str::FromStr>::Err: std::fmt::Debug {
-	i.next().unwrap().unwrap().parse().unwrap()
-}
-
 pub fn main() {
-	let input = std::io::stdin();
-	let mut stdin = input.lock().lines();
-	let count: i64 = read(&mut stdin);
+	// ----------------------------- Fast IO ------------------------------ //
+	let stdout = stdout();
+	let mut writer = BufWriter::new(stdout.lock());
+	macro_rules! println { ($($x:tt)*) => { writeln!(writer, $($x)*).unwrap() }; }
+
+	let input = stdin();
+	let mut scanner = Scanner::new(input.lock().bytes().map(|x| x.unwrap()));
+	#[rustfmt::skip] macro_rules! read { ($t:tt) => { scanner.read::<$t>() }; }
+	// -------------------------------------------------------------------- //
+
+	let count = read!(i64);
 	for _ in 0..count {
-		let n: i64 = read(&mut stdin);
+		let n = read!(i64);
 		println!("{}", get_answer(n, 0));
 	}
 }
+
+//----------------------------------------------------------------------------
+// \/ \/ \/ \/ \/ \/ \/ \/ \/  PRE-WRITTEN CODE \/ \/ \/ \/ \/ \/ \/ \/ \/ \/
+// Source: https://github.com/optozorax/olymp/tree/master/templates ----------
+//----------------------------------------------------------------------------
+
+include!("../../../../templates/src/to_include/imports.rs");
+include!("../../../../templates/src/to_include/scanner.rs");

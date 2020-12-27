@@ -25,6 +25,7 @@ include!("to_include/for_each_number/subset.rs");
 
 include!("to_include/iterator/count.rs");
 include!("to_include/iterator/duplicate.rs");
+include!("to_include/iterator/push_map.rs");
 
 include!("to_include/arithmetic_progression.rs");
 include!("to_include/bit64.rs");

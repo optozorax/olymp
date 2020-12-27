@@ -11,10 +11,24 @@
 // disable warnings, and not include this big #![allow(...)] into file which
 // will be copied.
 
+#[macro_export]
+macro_rules! print {
+	($($t:tt)*) => {
+		compile_error!("Use print only in main because of Fast IO!");
+	};
+}
+
+#[macro_export]
+macro_rules! println {
+	($($t:tt)*) => {
+		compile_error!("Use print only in main because of Fast IO!");
+	};
+}
+
 pub mod a;
 pub mod b;
 pub mod c;
 pub mod d;
 pub mod e2;
 
-
+pub mod e2_checker;

@@ -1,74 +1,44 @@
 /*****************************************************************************
  * Generated and tested by: olytest   (https://github.com/optozorax/olytest) *
  * Author: Ilya Sheprut                                     a.k.a. optozorax *
- * Generated at:                             Mon, 28 Dec 2020 01:23:16 +0700 *
+ * Generated at:                             Mon, 28 Dec 2020 01:23:15 +0700 *
  * License: MIT/Apache 2.0                                                   *
  *****************************************************************************
  */
+
+fn solve(s: &[u8], l: usize, r: usize) -> bool {
+	let first_pos = s.iter().position(|x| *x == s[l]).unwrap();
+	let last_pos = s.len() - 1 - s.iter().rev().position(|x| *x == s[r]).unwrap();
+	first_pos != l || last_pos != r
+}
 
 pub fn main() {
 	// ----------------------------- Fast IO ------------------------------ //
 	let stdout = stdout();
 	let mut writer = BufWriter::new(stdout.lock());
-	macro_rules! print { ($($x:tt)*) => { write!(writer, $($x)*).unwrap() }; }
 	macro_rules! println { ($($x:tt)*) => { writeln!(writer, $($x)*).unwrap() }; }
-	#[rustfmt::skip] macro_rules! flush { ($($x:tt)*) => { writer.flush().unwrap() }; }
 
 	let input = stdin();
 	let mut scanner = Scanner::new(input.lock().bytes().map(|x| x.unwrap()));
 	#[rustfmt::skip] macro_rules! read { ($t:tt) => { scanner.read::<$t>() }; }
+	#[rustfmt::skip] macro_rules! bytes { () => { scanner.bytes() }; }
 	// -------------------------------------------------------------------- //
 
-	let count = read!(usize);
-
-	enum Get {
-		Xor,
-		And,
-	}
-
-	let mut get = |kind: Get, i: usize, j: usize| -> usize {
-		let s = match kind {
-			Get::Xor => "XOR",
-			Get::And => "AND",
-		};
-		println!("{} {} {}", s, i + 1, j + 1);
-		flush!();
-		read!(usize)
-	};
-
-	let xored = {
-		let mut result: Vec<usize> = Vec::new();
-		for i in 1..count {
-			result.push(get(Get::Xor, 0, i))
+	let t = read!(u8);
+	for _ in 0..t {
+		let _n = read!(u8);
+		let q = read!(u8);
+		let s = bytes!();
+		for _ in 0..q {
+			let l = read!(usize) - 1;
+			let r = read!(usize) - 1;
+			if solve(&s, l, r) {
+				println!("YES");
+			} else {
+				println!("NO");
+			}
 		}
-		result
-	};
-
-	let first = if let Some(zero_pos) = xored.iter().position(|x| *x == 0) {
-		// there is same value as first
-		xored[zero_pos] ^ get(Get::And, 0, zero_pos + 1)
-	} else if let Some((a, b)) = xored
-		.iter()
-		.enumerate()
-		.duplicates_with_vec_by(count, |(_, value)| *value)
-		.map(|(a, b)| (a.0, b.0))
-		.next()
-	{
-		// there is two same values
-		xored[a] ^ get(Get::And, a + 1, b + 1)
-	} else {
-		// there is all different numbers
-		let a = get(Get::And, 0, xored.iter().position(|x| *x == 1).unwrap() + 1);
-		let b = get(Get::And, 0, xored.iter().position(|x| *x == 2).unwrap() + 1);
-		a | b
-	};
-
-	print!("! {}", first);
-	for i in xored {
-		print!(" {}", i ^ first);
 	}
-	println!();
-	flush!();
 }
 
 //----------------------------------------------------------------------------
@@ -149,42 +119,5 @@ impl<I: Iterator<Item = u8>> Scanner<I> {
         self.iter.next();
         result
     }
-}
-
-trait FindDuplicatesWithVecBy: Sized {
-	fn duplicates_with_vec_by<T: Clone, F: Fn(T) -> usize>(self, vec_size: usize, f: F) -> DuplicatesWithVecBy<Self, F, T> where Self: std::iter::Iterator<Item = T>;
-}
-
-impl<I: Iterator> FindDuplicatesWithVecBy for I {
-	fn duplicates_with_vec_by<T: Clone, F: Fn(T) -> usize>(self, vec_size: usize, f: F) -> DuplicatesWithVecBy<Self, F, T> where Self: std::iter::Iterator<Item = T> {
-		DuplicatesWithVecBy {
-			vec: vec![None; vec_size],
-			iter: self,
-			f,
-		}
-	}
-}
-
-struct DuplicatesWithVecBy<I: Iterator<Item = T>, F: Fn(T) -> usize, T: Clone> {
-	vec: Vec<Option<T>>,
-	iter: I,
-	f: F,
-}
-
-impl<I: Iterator<Item = T>, F: Fn(T) -> usize, T: Clone> Iterator for DuplicatesWithVecBy<I, F, T> {
-	type Item = (T, T);
-
-	fn next(&mut self) -> Option<Self::Item> {
-		while let Some(elem) = self.iter.next() {
-			let pos = (self.f)(elem.clone());
-			dbg!(pos);
-			if let Some(exists) = &self.vec[pos] {
-				return Some((exists.clone(), elem))
-			} else {
-				self.vec[pos] = Some(elem);
-			}
-		}
-		None
-	}
 }
 

@@ -35,6 +35,9 @@ impl<I: Iterator<Item = u8>> Scanner<I> {
 
     pub fn bytes(&mut self) -> Vec<u8> {
         let mut result = Vec::new();
+        while self.iter.peek().copied().map(is_ascii_newline).unwrap_or(false) {
+            self.iter.next();
+        }
         while let Some(byte) = self.iter.peek().copied() {
             self.iter.next();
             if is_ascii_newline(byte) {
