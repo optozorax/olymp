@@ -1,6 +1,6 @@
 fn solve(s: &[u8], l: usize, r: usize) -> bool {
 	let first_pos = s.iter().position(|x| *x == s[l]).unwrap();
-	let last_pos = s.len() - 1 - s.iter().rev().position(|x| *x == s[r]).unwrap();
+	let last_pos = s.iter().rev_position(|x| *x == s[r]).unwrap();
 	first_pos != l || last_pos != r
 }
 
@@ -40,3 +40,4 @@ pub fn main() {
 
 include!("../../../../templates/src/to_include/imports.rs");
 include!("../../../../templates/src/to_include/scanner.rs");
+include!("../../../../templates/src/to_include/iterator/rev_position.rs");

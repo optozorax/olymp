@@ -1,13 +1,13 @@
 /*****************************************************************************
 * Generated and tested by: olytest    (https://github.com/optozorax/olytest) *
 * Author: Ilya Sheprut                                      a.k.a. optozorax *
-* Generated at:                              Mon, 28 Dec 2020 04:16:47 +0700 *
+* Generated at:                              Mon, 28 Dec 2020 04:33:29 +0700 *
 * License: MIT/Apache 2.0                                                    *
 *****************************************************************************/
 
 fn solve(s: &[u8], l: usize, r: usize) -> bool {
 	let first_pos = s.iter().position(|x| *x == s[l]).unwrap();
-	let last_pos = s.len() - 1 - s.iter().rev().position(|x| *x == s[r]).unwrap();
+	let last_pos = s.iter().rev_position(|x| *x == s[r]).unwrap();
 	first_pos != l || last_pos != r
 }
 
@@ -135,5 +135,17 @@ impl<I: Iterator<Item = u8>> Scanner<I> {
         }
         result
     }
+}
+
+//----------------------------------------------------------------------------
+
+trait RevPositionTrait: Iterator + DoubleEndedIterator {
+	fn rev_position<P: FnMut(Self::Item) -> bool>(&mut self, predicate: P) -> Option<usize>;
+}
+
+impl<I: Iterator + DoubleEndedIterator + ExactSizeIterator> RevPositionTrait for I {
+	fn rev_position<P: FnMut(Self::Item) -> bool>(&mut self, predicate: P) -> Option<usize> {
+		Some(self.len() - 1 - self.rev().position(predicate)?)
+	}
 }
 
