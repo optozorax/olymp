@@ -1,3 +1,4 @@
+use crate::display::JoinedByTrait;
 use std::borrow::Cow;
 use std::fmt;
 
@@ -81,10 +82,10 @@ impl fmt::Display for Tokens<'_> {
         write!(
             f,
             "{}",
-            crate::display::Joined {
-                elements: self.0.iter().map(|x| std::str::from_utf8(x).unwrap()),
-                by: " ",
-            }
+            self.0
+                .iter()
+                .map(|x| std::str::from_utf8(x).unwrap())
+                .joined_by(" ")
         )
     }
 }

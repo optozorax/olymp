@@ -1,8 +1,18 @@
 use std::fmt;
 
 pub struct Joined<'a, I> {
-    pub elements: I,
-    pub by: &'a str,
+    elements: I,
+    by: &'a str,
+}
+
+pub trait JoinedByTrait: Sized {
+    fn joined_by(self, by: &str) -> Joined<Self>;
+}
+
+impl<I: Iterator<Item = T> + Clone, T: fmt::Display> JoinedByTrait for I {
+    fn joined_by(self, by: &str) -> Joined<Self> {
+        Joined { elements: self, by }
+    }
 }
 
 impl<I: Iterator<Item = T> + Clone, T: fmt::Display> fmt::Display for Joined<'_, I> {

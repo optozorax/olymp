@@ -5,6 +5,8 @@ use scraper::Selector;
 use std::collections::BTreeSet;
 use std::fmt;
 
+use crate::display::JoinedByTrait;
+
 #[derive(Debug, Clone)]
 pub struct CodeforcesTest {
     pub input: String,
@@ -22,14 +24,7 @@ impl fmt::Display for CodeforcesTest {
 
 impl fmt::Display for CodeforcesTests {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            crate::display::Joined {
-                elements: self.0.iter(),
-                by: "\n\\\n",
-            }
-        )
+        write!(f, "{}", self.0.iter().joined_by("\n\\\n"))
     }
 }
 

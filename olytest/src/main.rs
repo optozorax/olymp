@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::borrow::Cow;
 use std::fs::File;
 use std::io::{Read, Write};
@@ -8,7 +9,7 @@ use termcolor::{Color, ColorChoice, StandardStream, WriteColor};
 use termcolor_macro::*;
 
 use olytest::codeforces;
-use olytest::display;
+use olytest::display::JoinedByTrait;
 use olytest::files;
 use olytest::run;
 use olytest::test;
@@ -22,7 +23,17 @@ use olytest::test;
 /// * If none of this symbols is on the test, then output for program just printed on screen for visual testing.
 #[derive(Debug, StructOpt)]
 #[structopt(name = "olytest", author = "Ilya Sheprut a.k.a. optozorax")]
-enum Opt {
+struct Opt {
+    /// Absolute path to template folder, used in generation of executables.
+    #[structopt(short, long, env = "OLYTEST_TEMPLATE_ABSOLUTE_PATH", parse(from_os_str))]
+    template_path: PathBuf,
+
+    #[structopt(subcommand)]
+    subcommand: OptEnum,
+}
+
+#[derive(Debug, StructOpt)]
+enum OptEnum {
     /// Init this folder with provided executables names.
     #[structopt(visible_alias = "i")]
     Init { files: Vec<String> },
@@ -102,9 +113,6 @@ struct TestSettings {
     /// With this option, output of program and checker will be escaped: line endings become '\n' and etc.
     #[structopt(short = "s", long)]
     escape_output: bool,
-    // / Path to template folder, from
-    // #[structopt(short, long, env = "OLYTEST_TEMPLATE_PATH", parse(from_os_str))]
-    // template_path: PathBuf,
 }
 
 struct ReadFileError<'a> {
@@ -426,28 +434,29 @@ fn main() -> anyhow::Result<()> {
     let mut stdout = StandardStream::stdout(ColorChoice::Auto);
     let opt = Opt::from_args();
 
-    match opt {
-        Opt::Init { files } => {
+    let relative_path_to_template = files::make_template_relavite_path(&opt.template_path);
+
+    use OptEnum::*;
+
+    match opt.subcommand {
+        Init { files } => {
             clrln!(stdout, n (Color::Black) "Initialize files...");
             files::init_common().context("Error in common files init")?;
             for name in files {
                 clrln!(stdout, n (Color::Black) "Create executable `{}`...", name);
-                files::create_executable(&name)
+                files::create_executable(&name, &relative_path_to_template)
                     .with_context(|| format!("Error during creation of executable `{}`", name))?;
             }
         }
-        Opt::Codeforces { number } => {
+        Codeforces { number } => {
             clrln!(stdout, n (Color::Black) "Initialize files...");
             files::init_common().context("common files init")?;
             let problems =
                 codeforces::get_problems(number).context("Can't get codeforces problems")?;
-            clrln!(stdout, b (Color::Green) "Found problems: "; " {}", display::Joined {
-                elements: problems.iter(),
-                by: " "
-            });
+            clrln!(stdout, b (Color::Green) "Found problems: "; " {}", problems.iter().joined_by(" "));
             for name in &problems {
                 clrln!(stdout, n (Color::Black) "Create executable `{}`...", name);
-                files::create_executable(&name)
+                files::create_executable(&name, &relative_path_to_template)
                     .with_context(|| format!("Error during creation of executable `{}`", name))?;
             }
             for name in &problems {
@@ -466,10 +475,10 @@ fn main() -> anyhow::Result<()> {
                 }
             }
         }
-        Opt::Test { name, settings } => {
+        Test { name, settings } => {
             test(&mut stdout, &name, &settings);
         }
-        Opt::TestAll { settings } => {
+        TestAll { settings } => {
             let all_executables = files::get_current_executables()
                 .context("Error during get list of all executables")?;
             for name in all_executables {
@@ -478,19 +487,19 @@ fn main() -> anyhow::Result<()> {
                 writeln!(stdout).unwrap();
             }
         }
-        Opt::GenerateExecutable { name } => {
-            files::create_executable(&name)
+        GenerateExecutable { name } => {
+            files::create_executable(&name, &relative_path_to_template)
                 .with_context(|| format!("Error during creation of executable `{}`", name))?;
         }
-        Opt::GenerateChecker { name } => {
-            files::create_checker(&name)
+        GenerateChecker { name } => {
+            files::create_checker(&name, &relative_path_to_template)
                 .with_context(|| format!("Error during creation of checker `{}_checker`", name))?;
         }
-        Opt::RemoveExecutable { name } => {
+        RemoveExecutable { name } => {
             files::remove_executable(&name)
                 .with_context(|| format!("Error during removing executable `{}`", name))?;
         }
-        Opt::RemoveChecker { name } => {
+        RemoveChecker { name } => {
             files::remove_checker(&name)
                 .with_context(|| format!("Error during removing checker `{}_checker`", name))?;
         }

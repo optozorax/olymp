@@ -115,16 +115,25 @@ pub fn format_path_buf<S1: AsRef<Path>, S2: AsRef<OsStr>>(
     result
 }
 
-pub fn create_executable(name: &str) -> Result<(), FileIoError> {
-    let main = include_str!("../template/src/name.rs");
-    let bin = include_str!("../template/src/bin/exe.rs");
-
-    write(format_path_buf(&["src", &name], "rs"), main)?;
+pub fn create_executable_general(
+    name: &str,
+    template_relative_path: &Path,
+    create_empty_test: bool,
+    main_str: &str,
+    bin_str: &str,
+) -> Result<(), FileIoError> {
+    // TODO считывать это из байтов, и тоже заменять всё на байты
+    write(
+        format_path_buf(&["src", &name], "rs"),
+        &main_str.replace("%", template_relative_path.to_str().unwrap()),
+    )?;
     write(
         format_path_buf(&["src", "bin", &name], "rs"),
-        &bin.replace("~", name),
+        &bin_str.replace("~", name),
     )?;
-    write(format_path_buf(&["tests", &name], "test"), "")?;
+    if create_empty_test {
+        write(format_path_buf(&["tests", &name], "test"), "")?;
+    }
 
     for_file("src/lib.rs", |file| {
         writeln!(
@@ -135,16 +144,38 @@ pub fn create_executable(name: &str) -> Result<(), FileIoError> {
     })
 }
 
-pub fn create_checker(name: &str) -> Result<(), FileIoError> {
-    let bin = include_str!("../template/src/bin/checker.rs");
-
-    write(format!("src/bin/{}_checker.rs", name), bin)
+pub fn make_template_relavite_path(template_absolute_path: &Path) -> PathBuf {
+    // TODO сделать тут нормальную обработку ошибок
+    let current_dir = std::env::current_dir().expect("can't get current dir").join("src");
+    pathdiff::diff_paths(template_absolute_path, current_dir).expect("can't find diff between paths")
 }
 
-pub fn remove_executable(name: &str) -> Result<(), FileIoError> {
+pub fn create_executable(name: &str, template_relative_path: &Path) -> Result<(), FileIoError> {
+    create_executable_general(
+        name,
+        template_relative_path,
+        true,
+        include_str!("../template/src/name.rs"),
+        include_str!("../template/src/bin/exe.rs"),
+    )
+}
+
+pub fn create_checker(name: &str, template_relative_path: &Path) -> Result<(), FileIoError> {
+    create_executable_general(
+        &format!("{}_checker", name),
+        template_relative_path,
+        false,
+        include_str!("../template/src/name_checker.rs"),
+        include_str!("../template/src/bin/exe.rs"),
+    )
+}
+
+pub fn remove_executable_general(name: &str, remove_test: bool) -> Result<(), FileIoError> {
     remove_file(format_path_buf(&["src", &name], "rs"))?;
     remove_file(format_path_buf(&["src", "bin", &name], "rs"))?;
-    remove_file(format_path_buf(&["tests", &name], "test"))?;
+    if remove_test {
+        remove_file(format_path_buf(&["tests", &name], "test"))?;
+    }
 
     let readed = read("src/lib.rs")?;
     let re = Regex::new(&format!("pub mod {};", name)).unwrap();
@@ -152,8 +183,12 @@ pub fn remove_executable(name: &str) -> Result<(), FileIoError> {
     write("src/lib.rs", lib_rs)
 }
 
+pub fn remove_executable(name: &str) -> Result<(), FileIoError> {
+    remove_executable_general(name, true)
+}
+
 pub fn remove_checker(name: &str) -> Result<(), FileIoError> {
-    remove_file(format!("src/bin/{}_checker.rs", name))
+    remove_executable_general(&format!("{}_checker", name), false)
 }
 
 pub fn write_test<T: AsRef<[u8]>>(name: &str, content: T) -> Result<(), FileIoError> {
@@ -177,6 +212,45 @@ pub fn get_current_executables() -> Result<Vec<String>, FileIoError> {
 pub enum GenerateError {
     OtherFiles(FileIoError),
     IncludeError(FileIoError),
+}
+
+struct GeneratedFileHeader {
+    width: usize,
+    lines: Vec<HeaderLine>,
+}
+
+struct HeaderLine {
+    text: String,
+    info_left: String,
+    info_right: String,
+}
+
+fn write_to_vec(header: GeneratedFileHeader) -> Vec<u8> {
+    let mut result = Vec::new();
+    result.extend(b"/".iter());
+    result.extend(std::iter::repeat(b'*').take(header.width - 3));
+    result.push(b'\n');
+    for HeaderLine {
+        text,
+        info_left,
+        info_right,
+    } in header.lines
+    {
+        result.extend(b" * ".iter());
+        result.extend(text.as_bytes().iter());
+        result.extend(b": ".iter());
+        result.extend(info_left.as_bytes().iter());
+        result.extend(
+            std::iter::repeat(b' ')
+                .take(header.width - 9 - text.len() - info_left.len() - info_right.len()),
+        );
+        result.extend(info_right.as_bytes().iter());
+        result.extend(b" *\n".iter());
+    }
+    result.push(b' ');
+    result.extend(std::iter::repeat(b'*').take(header.width - 3));
+    result.extend(b"\n */\n\n".iter());
+    result
 }
 
 #[allow(clippy::redundant_closure)]
@@ -206,7 +280,34 @@ pub fn generate_without_include(path: &Path) -> Result<(), GenerateError> {
     files.sort_unstable_by_key(|x| x.0.start);
 
     let new_file = {
-        let mut new_file = Vec::with_capacity(file.len());
+        use chrono::prelude::*;
+        let local: DateTime<Local> = Local::now();
+        let header = GeneratedFileHeader {
+            width: 80,
+            lines: vec![
+                HeaderLine {
+                    text: "Generated and tested by".to_string(),
+                    info_left: "olytest".to_string(),
+                    info_right: "(https://github.com/optozorax/olytest)".to_string(),
+                },
+                HeaderLine {
+                    text: "Author".to_string(),
+                    info_left: "Ilya Sheprut".to_string(),
+                    info_right: "a.k.a. optozorax".to_string(),
+                },
+                HeaderLine {
+                    text: "Generated at".to_string(),
+                    info_left: "".to_string(),
+                    info_right: local.to_rfc2822(),
+                },
+                HeaderLine {
+                    text: "License".to_string(),
+                    info_left: "MIT/Apache 2.0".to_string(),
+                    info_right: "".to_string(),
+                },
+            ],
+        };
+        let mut new_file = write_to_vec(header);
         let mut start = 0;
         for (range, include_file_path) in files {
             let include_file_content =
