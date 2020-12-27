@@ -25,3 +25,10 @@ macro_rules! println {
 // disable warnings, and not include this big #![allow(...)] into file which
 // will be copied.
 
+pub mod a;
+pub mod b;
+pub mod c;
+pub mod d;
+
+pub mod a_checker;
+pub mod f;

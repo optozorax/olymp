@@ -1,3 +1,5 @@
+// TODO MAKE THIS USE binary_function.rs
+
 #[derive(Debug)]
 struct SegmentTree<'a, T, Y, F, FY> {
     input: &'a mut [T],

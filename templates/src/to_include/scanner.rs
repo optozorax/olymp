@@ -49,13 +49,27 @@ impl<I: Iterator<Item = u8>> Scanner<I> {
         result
     }
 
+    fn skip_spaces_but_not_newlines(&mut self) {
+        while self.iter.peek().map(|x| x.is_ascii_whitespace() && !is_ascii_newline(*x)).unwrap_or(false) {
+            self.iter.next();
+        }
+    }
+
+    fn skip_one_newline(&mut self) {
+        if self.iter.peek().copied().map(is_ascii_newline).unwrap_or(false) {
+            self.iter.next();
+        }
+    }
+
     pub fn readln<T: FromStr>(&mut self) -> Vec<T>
     where T::Err: Debug {
+        self.skip_one_newline();
         let mut result = Vec::new();
+        self.skip_spaces_but_not_newlines();
         while self.iter.peek().map(|x| !is_ascii_newline(*x)).unwrap_or(false) {
             result.push(self.read());
+            self.skip_spaces_but_not_newlines();
         }
-        self.iter.next();
         result
     }
 }

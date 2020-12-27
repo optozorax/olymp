@@ -1,52 +1,57 @@
 /*****************************************************************************
 * Generated and tested by: olytest    (https://github.com/optozorax/olytest) *
 * Author: Ilya Sheprut                                      a.k.a. optozorax *
-* Generated at:                              Mon, 28 Dec 2020 04:16:46 +0700 *
+* Generated at:                              Mon, 28 Dec 2020 04:16:33 +0700 *
 * License: MIT/Apache 2.0                                                    *
 *****************************************************************************/
 
-fn get_min_divisor(n: i64) -> Option<i64> {
-	for i in (2..=((n as f64).sqrt() as i64 + 5)).filter(|x| *x < n) {
-		if n % i == 0 {
-			return Some(i);
+#[allow(clippy::mut_range_bound)]
+fn factorize(mut n: u64) -> BTreeMap<u64, usize> {
+	let mut result = BTreeMap::new();
+	for i in 2..n {
+		if i > n || i > (n as f64).sqrt() as u64 + 5 {
+			break;
+		}
+		while n % i == 0 {
+			*result.entry(i).or_insert(0) += 1;
+			n /= i;
 		}
 	}
-	None
-}
-
-fn get_answer(n: i64, depth: i64) -> i64 {
-	match n {
-		1 => 0,
-		2 => 1,
-		3 => 2,
-		n => match get_min_divisor(n) {
-			Some(d) => {
-				1 + if depth < 4 {
-					std::cmp::min(get_answer(d, depth + 1), get_answer(n - 1, depth + 1))
-				} else {
-					get_answer(d, depth)
-				}
-			},
-			None => 1 + get_answer(n - 1, depth),
-		},
+	if n != 0 {
+		*result.entry(n).or_insert(0) += 1;
 	}
+	result
 }
 
 pub fn main() {
 	// ----------------------------- Fast IO ------------------------------ //
 	let stdout = stdout();
 	let mut writer = BufWriter::new(stdout.lock());
+	macro_rules! print { ($($x:tt)*) => { write!(writer, $($x)*).unwrap() }; }
 	macro_rules! println { ($($x:tt)*) => { writeln!(writer, $($x)*).unwrap() }; }
+	#[rustfmt::skip] macro_rules! flush { ($($x:tt)*) => { writer.flush().unwrap() }; }
 
 	let input = stdin();
 	let mut scanner = Scanner::new(input.lock().bytes().map(|x| x.unwrap()));
 	#[rustfmt::skip] macro_rules! read { ($t:tt) => { scanner.read::<$t>() }; }
+	#[rustfmt::skip] macro_rules! readln { ($t:tt) => { scanner.readln::<$t>() }; }
+	#[rustfmt::skip] macro_rules! byte { () => { scanner.byte() }; }
+	#[rustfmt::skip] macro_rules! bytes { () => { scanner.bytes() }; }
 	// -------------------------------------------------------------------- //
 
-	let count = read!(i64);
-	for _ in 0..count {
-		let n = read!(i64);
-		println!("{}", get_answer(n, 0));
+	let t = read!(usize);
+	for _ in 0..t {
+		let mut n = read!(u64);
+		let max_count = factorize(n)
+			.into_iter()
+			.max_by_key(|(_miltiprier, count)| *count)
+			.unwrap();
+		println!("{}", max_count.1);
+		for _ in 0..max_count.1 - 1 {
+			print!("{} ", max_count.0);
+			n /= max_count.0;
+		}
+		println!("{}", n);
 	}
 }
 

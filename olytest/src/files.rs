@@ -91,7 +91,7 @@ pub fn init_common() -> Result<(), FileIoError> {
     let rustfmt_toml = include_str!("../template/rustfmt.toml");
     let cargo_toml = include_str!("../template/Cargo.toml");
     let gitignore = include_str!("../template/.gitignore");
-    let src_lib = include_str!("../src/lib.rs");
+    let src_lib = include_str!("../template/src/lib.rs");
 
     create_dir("src")?;
     create_dir("src/bin")?;
