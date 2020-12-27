@@ -1,4 +1,4 @@
-fn z_function<T: Eq>(input: &[T]) -> Vec<usize> {
+fn z_function<T: PartialEq>(input: &[T]) -> Vec<usize> {
     let mut z = vec![0; input.len()];
     let mut l = 0usize;
     let mut r = 0usize;
@@ -19,4 +19,21 @@ fn z_function<T: Eq>(input: &[T]) -> Vec<usize> {
         }
     }
     z
+}
+
+#[derive(Clone, Debug)]
+struct ZVec<T> {
+    vec: Vec<T>,
+    z: Vec<usize>,
+}
+
+impl<T: PartialEq> FromIterator<T> for ZVec<T> {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        let vec: Vec<T> = Vec::from_iter(iter);
+        let z = z_function(&vec);
+        ZVec {
+            vec,
+            z,
+        }
+    }
 }

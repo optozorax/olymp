@@ -220,7 +220,7 @@ macro_rules! read {
 	}};
 }
 
-include!("../../../../templates/iterators.rs");
+include!("../../../../templates/src/to_include/iterator/duplicate.rs");
 
 enum Get {
 	Xor,

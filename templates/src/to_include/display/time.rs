@@ -19,12 +19,3 @@ macro_rules! sum_time {
         now.elapsed()
     }};
 }
-
-time! {
-
-}
-
-#[test]
-fn bench() {
-    panic!();
-}
