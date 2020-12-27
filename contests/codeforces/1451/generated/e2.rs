@@ -1,10 +1,9 @@
 /*****************************************************************************
- * Generated and tested by: olytest   (https://github.com/optozorax/olytest) *
- * Author: Ilya Sheprut                                     a.k.a. optozorax *
- * Generated at:                             Mon, 28 Dec 2020 01:23:16 +0700 *
- * License: MIT/Apache 2.0                                                   *
- *****************************************************************************
- */
+* Generated and tested by: olytest    (https://github.com/optozorax/olytest) *
+* Author: Ilya Sheprut                                      a.k.a. optozorax *
+* Generated at:                              Mon, 28 Dec 2020 01:53:39 +0700 *
+* License: MIT/Apache 2.0                                                    *
+*****************************************************************************/
 
 pub fn main() {
 	// ----------------------------- Fast IO ------------------------------ //
@@ -89,6 +88,8 @@ use std::{
     str::FromStr,
 };
 
+//----------------------------------------------------------------------------
+
 fn is_ascii_newline(byte: u8) -> bool { byte == b'\n' || byte == b'\r' }
 
 struct Scanner<I: Iterator> {
@@ -150,6 +151,8 @@ impl<I: Iterator<Item = u8>> Scanner<I> {
         result
     }
 }
+
+//----------------------------------------------------------------------------
 
 trait FindDuplicatesWithVecBy: Sized {
 	fn duplicates_with_vec_by<T: Clone, F: Fn(T) -> usize>(self, vec_size: usize, f: F) -> DuplicatesWithVecBy<Self, F, T> where Self: std::iter::Iterator<Item = T>;

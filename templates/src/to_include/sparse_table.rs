@@ -1,5 +1,7 @@
 // TODO RENAME SPARSE TABLE AND MADE IT WORK FOR ALL IDEMPOTENT FUNCTIONS
 
+// https://cp-algorithms.com/data_structures/sparse-table.html
+
 #[derive(Debug, Clone)]
 struct Rmq<'a, T> {
     input: &'a [T],

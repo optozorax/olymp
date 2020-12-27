@@ -1,10 +1,9 @@
 /*****************************************************************************
- * Generated and tested by: olytest   (https://github.com/optozorax/olytest) *
- * Author: Ilya Sheprut                                     a.k.a. optozorax *
- * Generated at:                             Mon, 28 Dec 2020 01:23:16 +0700 *
- * License: MIT/Apache 2.0                                                   *
- *****************************************************************************
- */
+* Generated and tested by: olytest    (https://github.com/optozorax/olytest) *
+* Author: Ilya Sheprut                                      a.k.a. optozorax *
+* Generated at:                              Mon, 28 Dec 2020 01:53:38 +0700 *
+* License: MIT/Apache 2.0                                                    *
+*****************************************************************************/
 
 fn moves_up(token: (u64, u64), d: u64, k: u64) -> Option<u64> {
 	let result = ((d as f64 * d as f64 - token.0 as f64 * token.0 as f64).sqrt().floor() as u64 - token.1) / k;
@@ -89,6 +88,8 @@ use std::{
     ops::{Add, Div, Mul, Neg, Range, RangeInclusive, Rem, Sub},
     str::FromStr,
 };
+
+//----------------------------------------------------------------------------
 
 fn is_ascii_newline(byte: u8) -> bool { byte == b'\n' || byte == b'\r' }
 

@@ -146,8 +146,11 @@ pub fn create_executable_general(
 
 pub fn make_template_relavite_path(template_absolute_path: &Path) -> PathBuf {
     // TODO сделать тут нормальную обработку ошибок
-    let current_dir = std::env::current_dir().expect("can't get current dir").join("src");
-    pathdiff::diff_paths(template_absolute_path, current_dir).expect("can't find diff between paths")
+    let current_dir = std::env::current_dir()
+        .expect("can't get current dir")
+        .join("src");
+    pathdiff::diff_paths(template_absolute_path, current_dir)
+        .expect("can't find diff between paths")
 }
 
 pub fn create_executable(name: &str, template_relative_path: &Path) -> Result<(), FileIoError> {
@@ -236,21 +239,48 @@ fn write_to_vec(header: GeneratedFileHeader) -> Vec<u8> {
         info_right,
     } in header.lines
     {
-        result.extend(b" * ".iter());
+        result.extend(b"* ".iter());
         result.extend(text.as_bytes().iter());
         result.extend(b": ".iter());
         result.extend(info_left.as_bytes().iter());
         result.extend(
             std::iter::repeat(b' ')
-                .take(header.width - 9 - text.len() - info_left.len() - info_right.len()),
+                .take(header.width - 8 - text.len() - info_left.len() - info_right.len()),
         );
         result.extend(info_right.as_bytes().iter());
         result.extend(b" *\n".iter());
     }
-    result.push(b' ');
     result.extend(std::iter::repeat(b'*').take(header.width - 3));
-    result.extend(b"\n */\n\n".iter());
+    result.extend(b"/\n\n".iter());
     result
+}
+
+fn trim<T, P>(slice: &[T], mut predicate: P) -> &[T]
+where
+    P: FnMut(&T) -> bool,
+{
+    let mut left = 0;
+    let mut right = slice.len();
+
+    let mut iter = slice.iter();
+
+    while let Some(e) = iter.next() {
+        if predicate(e) {
+            left += 1
+        } else {
+            break;
+        }
+    }
+
+    while let Some(e) = iter.next_back() {
+        if predicate(e) {
+            right -= 1
+        } else {
+            break;
+        }
+    }
+
+    &slice[left..right]
 }
 
 #[allow(clippy::redundant_closure)]
@@ -282,6 +312,7 @@ pub fn generate_without_include(path: &Path) -> Result<(), GenerateError> {
     let new_file = {
         use chrono::prelude::*;
         let local: DateTime<Local> = Local::now();
+        // TODO считывать это из настроек
         let header = GeneratedFileHeader {
             width: 80,
             lines: vec![
@@ -307,13 +338,21 @@ pub fn generate_without_include(path: &Path) -> Result<(), GenerateError> {
                 },
             ],
         };
+        let separator = b"//----------------------------------------------------------------------------\n\n";
         let mut new_file = write_to_vec(header);
         let mut start = 0;
+        let mut first = true;
         for (range, include_file_path) in files {
             let include_file_content =
                 read(parent.join(include_file_path)).map_err(GenerateError::IncludeError)?;
             new_file.extend(&file[start..range.start]);
-            new_file.extend(include_file_content);
+            if !first {
+                new_file.extend(separator);
+            } else {
+                first = false;
+            }
+            new_file.extend(trim(&include_file_content, |x| x.is_ascii_whitespace()));
+            new_file.push(b'\n');
             start = range.end;
         }
         new_file.extend(&file[start..]);

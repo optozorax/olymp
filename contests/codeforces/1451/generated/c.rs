@@ -1,10 +1,9 @@
 /*****************************************************************************
- * Generated and tested by: olytest   (https://github.com/optozorax/olytest) *
- * Author: Ilya Sheprut                                     a.k.a. optozorax *
- * Generated at:                             Mon, 28 Dec 2020 01:23:16 +0700 *
- * License: MIT/Apache 2.0                                                   *
- *****************************************************************************
- */
+* Generated and tested by: olytest    (https://github.com/optozorax/olytest) *
+* Author: Ilya Sheprut                                      a.k.a. optozorax *
+* Generated at:                              Mon, 28 Dec 2020 01:53:38 +0700 *
+* License: MIT/Apache 2.0                                                    *
+*****************************************************************************/
 
 fn solve(a: &[u8], b: &[u8], k: usize) -> bool {
 	let mut have = a.iter().copied().map(|x| x - b'a').collect_count(27);
@@ -64,6 +63,8 @@ use std::{
     ops::{Add, Div, Mul, Neg, Range, RangeInclusive, Rem, Sub},
     str::FromStr,
 };
+
+//----------------------------------------------------------------------------
 
 fn is_ascii_newline(byte: u8) -> bool { byte == b'\n' || byte == b'\r' }
 
@@ -126,6 +127,8 @@ impl<I: Iterator<Item = u8>> Scanner<I> {
         result
     }
 }
+
+//----------------------------------------------------------------------------
 
 trait CountVecTrait {
 	fn collect_count(self, max: usize) -> Vec<usize>;

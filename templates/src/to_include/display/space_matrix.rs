@@ -1,5 +1,3 @@
-//----------------------------------------------------------------------------
-
 struct SpaceMatrix<T>(pub Vec<Vec<T>>);
 
 impl<T: Display> Display for SpaceMatrix<T> {

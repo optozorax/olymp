@@ -1,5 +1,3 @@
-//----------------------------------------------------------------------------
-
 struct SpaceVec<T>(pub Vec<T>);
 
 impl<T: Display> Display for SpaceVec<T> {

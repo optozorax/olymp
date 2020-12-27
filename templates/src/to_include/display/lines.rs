@@ -1,5 +1,3 @@
-//----------------------------------------------------------------------------
-
 struct Lines<T>(pub Vec<T>);
 
 impl<T: Display> Display for Lines<T> {

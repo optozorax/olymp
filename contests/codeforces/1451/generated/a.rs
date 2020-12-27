@@ -1,10 +1,9 @@
 /*****************************************************************************
- * Generated and tested by: olytest   (https://github.com/optozorax/olytest) *
- * Author: Ilya Sheprut                                     a.k.a. optozorax *
- * Generated at:                             Mon, 28 Dec 2020 01:23:14 +0700 *
- * License: MIT/Apache 2.0                                                   *
- *****************************************************************************
- */
+* Generated and tested by: olytest    (https://github.com/optozorax/olytest) *
+* Author: Ilya Sheprut                                      a.k.a. optozorax *
+* Generated at:                              Mon, 28 Dec 2020 01:53:36 +0700 *
+* License: MIT/Apache 2.0                                                    *
+*****************************************************************************/
 
 fn get_min_divisor(n: i64) -> Option<i64> {
 	for i in (2..=((n as f64).sqrt() as i64 + 5)).filter(|x| *x < n) {
@@ -68,6 +67,8 @@ use std::{
     ops::{Add, Div, Mul, Neg, Range, RangeInclusive, Rem, Sub},
     str::FromStr,
 };
+
+//----------------------------------------------------------------------------
 
 fn is_ascii_newline(byte: u8) -> bool { byte == b'\n' || byte == b'\r' }
 

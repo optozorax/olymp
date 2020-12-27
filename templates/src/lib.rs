@@ -99,7 +99,6 @@ mod prefix_tests {
 
 //----------------------------------------------------------------------------
 
-
 #[cfg(test)]
 mod suffix_tests {
     use super::*;
@@ -197,7 +196,11 @@ mod tests_binary_search_number_range {
     fn testing() {
         fn test_number(arr: &[u32], number: u32) {
             let result = binary_search_number_leftmost(0..arr.len(), number, |x| arr[x]);
-            let start = arr.iter().enumerate().find(|(_, value)| **value == number).map(|(index, _)| index);
+            let start = arr
+                .iter()
+                .enumerate()
+                .find(|(_, value)| **value == number)
+                .map(|(index, _)| index);
             if result != start {
                 dbg!(arr, result, start);
                 panic!();
@@ -205,9 +208,18 @@ mod tests_binary_search_number_range {
         }
         fn test_range(arr: &[u32], number: u32) {
             let result1 = binary_search_number_range(0..arr.len(), number, |x| arr[x]);
-            let start = arr.iter().enumerate().find(|(_, value)| **value == number).map(|(index, _)| index);
-            let end = arr.iter().enumerate().rev().find(|(_, value)| **value == number).map(|(index, _)| index);
-            let result2 = start.zip(end).map(|(a, b)| a..b+1);
+            let start = arr
+                .iter()
+                .enumerate()
+                .find(|(_, value)| **value == number)
+                .map(|(index, _)| index);
+            let end = arr
+                .iter()
+                .enumerate()
+                .rev()
+                .find(|(_, value)| **value == number)
+                .map(|(index, _)| index);
+            let result2 = start.zip(end).map(|(a, b)| a..b + 1);
             if result1 != result2 {
                 dbg!(arr, result1, result2);
                 panic!();
@@ -216,7 +228,9 @@ mod tests_binary_search_number_range {
         use rand::Rng;
         let mut rng = rand::thread_rng();
         for _ in 0..200000 {
-            let mut arr = (0..rng.gen_range(0, 20)).map(|_| rng.gen_range(0, 10)).collect::<Vec<u32>>();
+            let mut arr = (0..rng.gen_range(0, 20))
+                .map(|_| rng.gen_range(0, 10))
+                .collect::<Vec<u32>>();
             arr.sort_unstable();
             if rng.gen() {
                 arr.reverse();
@@ -228,11 +242,9 @@ mod tests_binary_search_number_range {
     }
 }
 
-
-
 #[cfg(test)]
 mod tests {
-    use crate::arithmetic_progression::ArithmeticProgresion;
+    use crate::ArithmeticProgresion;
 
     #[test]
     fn canonical() {
@@ -258,7 +270,7 @@ mod tests {
         for sum in 0..1000 {
             let n = ar.from_sum(sum);
             assert!(ar.sum_to(n) <= sum);
-            assert!(sum < ar.sum_to(n+1));
+            assert!(sum < ar.sum_to(n + 1));
         }
     }
 
@@ -269,7 +281,7 @@ mod tests {
         assert_eq!(ar.nth(0), 5);
         assert_eq!(ar.nth(1), 15);
         assert_eq!(ar.nth(2), 25);
-        assert_eq!(ar.nth(3), 35);      
+        assert_eq!(ar.nth(3), 35);
 
         assert_eq!(ar.sum_to(0), 0);
         assert_eq!(ar.sum_to(1), ar.nth(0));
@@ -285,7 +297,7 @@ mod tests {
         for sum in 0..1000 {
             let n = ar.from_sum(sum);
             assert!(ar.sum_to(n) <= sum);
-            assert!(sum < ar.sum_to(n+1));
+            assert!(sum < ar.sum_to(n + 1));
         }
     }
 }
@@ -319,7 +331,6 @@ mod tests_median {
         }
     }
 }
-
 
 #[cfg(test)]
 mod rmq_tests {

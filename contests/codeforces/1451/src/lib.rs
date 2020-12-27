@@ -7,10 +7,6 @@
 	unused_imports
 )]
 
-// This thing with files: `dev.rs`, `main.rs`, `lib.rs` is the only way how to
-// disable warnings, and not include this big #![allow(...)] into file which
-// will be copied.
-
 #[macro_export]
 macro_rules! print {
 	($($t:tt)*) => {
@@ -24,6 +20,10 @@ macro_rules! println {
 		compile_error!("Use print only in main because of Fast IO!");
 	};
 }
+
+// This thing with files: `dev.rs`, `main.rs`, `lib.rs` is the only way how to
+// disable warnings, and not include this big #![allow(...)] into file which
+// will be copied.
 
 pub mod a;
 pub mod b;

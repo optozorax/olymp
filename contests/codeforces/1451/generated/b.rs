@@ -1,10 +1,9 @@
 /*****************************************************************************
- * Generated and tested by: olytest   (https://github.com/optozorax/olytest) *
- * Author: Ilya Sheprut                                     a.k.a. optozorax *
- * Generated at:                             Mon, 28 Dec 2020 01:23:15 +0700 *
- * License: MIT/Apache 2.0                                                   *
- *****************************************************************************
- */
+* Generated and tested by: olytest    (https://github.com/optozorax/olytest) *
+* Author: Ilya Sheprut                                      a.k.a. optozorax *
+* Generated at:                              Mon, 28 Dec 2020 01:53:37 +0700 *
+* License: MIT/Apache 2.0                                                    *
+*****************************************************************************/
 
 fn solve(s: &[u8], l: usize, r: usize) -> bool {
 	let first_pos = s.iter().position(|x| *x == s[l]).unwrap();
@@ -58,6 +57,8 @@ use std::{
     ops::{Add, Div, Mul, Neg, Range, RangeInclusive, Rem, Sub},
     str::FromStr,
 };
+
+//----------------------------------------------------------------------------
 
 fn is_ascii_newline(byte: u8) -> bool { byte == b'\n' || byte == b'\r' }
 

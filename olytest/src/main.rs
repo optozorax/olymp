@@ -1,7 +1,7 @@
-use std::path::PathBuf;
 use std::borrow::Cow;
 use std::fs::File;
 use std::io::{Read, Write};
+use std::path::PathBuf;
 use std::process::{exit, Command};
 
 use structopt::StructOpt;
@@ -25,7 +25,12 @@ use olytest::test;
 #[structopt(name = "olytest", author = "Ilya Sheprut a.k.a. optozorax")]
 struct Opt {
     /// Absolute path to template folder, used in generation of executables.
-    #[structopt(short, long, env = "OLYTEST_TEMPLATE_ABSOLUTE_PATH", parse(from_os_str))]
+    #[structopt(
+        short,
+        long,
+        env = "OLYTEST_TEMPLATE_ABSOLUTE_PATH",
+        parse(from_os_str)
+    )]
     template_path: PathBuf,
 
     #[structopt(subcommand)]

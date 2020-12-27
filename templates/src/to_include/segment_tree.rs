@@ -157,4 +157,3 @@ impl<'a, T: Clone, Y: Clone, F: Fn(Range<usize>, Y, Y) -> Y, FY: Fn(usize, T) ->
         }
     }
 }
-
