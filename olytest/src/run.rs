@@ -346,7 +346,7 @@ pub async fn run_with_checker<T: WriteColor>(
             && program_stdout_closed
             && program_stderr_closed;
         let everything_done_correctly = checker_done && program_done;
-        if program_crashed || checker_crashed || everything_done_correctly {
+        if program_crashed || checker_crashed || everything_done_correctly || checker_done {
             break;
         }
     }

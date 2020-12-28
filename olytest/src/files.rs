@@ -338,7 +338,8 @@ pub fn generate_without_include(path: &Path) -> Result<(), GenerateError> {
                 },
             ],
         };
-        let separator = b"//----------------------------------------------------------------------------\n\n";
+        let separator =
+            b"//----------------------------------------------------------------------------\n\n";
         let mut new_file = write_to_vec(header);
         let mut start = 0;
         let mut first = true;

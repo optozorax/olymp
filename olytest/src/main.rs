@@ -118,6 +118,10 @@ struct TestSettings {
     /// With this option, output of program and checker will be escaped: line endings become '\n' and etc.
     #[structopt(short = "s", long)]
     escape_output: bool,
+
+    /// With this option output of program and checker will not be collected. Only that part of output, which compared to test. That option can make testing faster.
+    #[structopt(short = "c", long)]
+    not_collect_output: bool,
 }
 
 struct ReadFileError<'a> {
@@ -233,7 +237,12 @@ fn test<Out: WriteColor>(mut stdout: &mut Out, name: &str, opt: &TestSettings) {
     let mut ok_count = 0;
     let mut err_count = 0;
     for (no, test) in tests.into_iter().enumerate().map(|(i, x)| (i + 1, x)) {
-        let mut collector = run::Collector::new(opt.real_time, true, opt.escape_output, false);
+        let mut collector = run::Collector::new(
+            opt.real_time,
+            !opt.not_collect_output,
+            opt.escape_output,
+            false,
+        );
         let (input, result) = match test {
             test::TokenizedTest::Simple { input, output } => {
                 let run_result = run::run_program(
