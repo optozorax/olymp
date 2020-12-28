@@ -1,11 +1,7 @@
 fn solve(s: &mut [u8]) -> bool {
 	let open = s.iter().position(|x| *x == b'(').unwrap();
 	let close = s.iter().position(|x| *x == b')').unwrap();
-	if open < close {
-		(s.len() - 2) % 2 == 0
-	} else {
-		close > 0 && open < s.len() - 1 && (s.len() - 4) % 2 == 0
-	}
+	if open < close { s.len() % 2 == 0 } else { close > 0 && open < s.len() - 1 && s.len() % 2 == 0 }
 }
 
 pub fn main() {

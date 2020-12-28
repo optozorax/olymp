@@ -1,6 +1,7 @@
 use rand::prelude::*;
 
 pub fn main() {
+	let mut rng = rand::thread_rng();
 	// ----------------------------- Fast IO ------------------------------ //
 	let stdout = stdout();
 	let mut writer = BufWriter::new(stdout.lock());
@@ -11,19 +12,18 @@ pub fn main() {
 	let input = stdin();
 	let mut scanner = Scanner::new(input.lock().bytes().map(|x| x.unwrap()));
 	#[rustfmt::skip] macro_rules! read { ($t:tt) => { scanner.read::<$t>() }; }
-	#[rustfmt::skip] macro_rules! readln { ($t:tt) => { scanner.readln::<$t>() }; }
-	#[rustfmt::skip] macro_rules! byte { () => { scanner.byte() }; }
-	#[rustfmt::skip] macro_rules! bytes { () => { scanner.bytes() }; }
+	// -------------------------------------------------------------------- //
+	//                      DO NOT FORGET TO FLUSH!!!                       //
+	// -------------------------------------------------------------------- //
+	//                      DO NOT FORGET TO FLUSH!!!                       //
 	// -------------------------------------------------------------------- //
 
 	let from = read!(usize);
 	let to = read!(usize);
 
 	let mut vec = (from..=to).collect::<Vec<_>>();
-	let mut rng = rand::thread_rng();
 	vec.shuffle(&mut rng);
-
-	vec = vec.into_iter().take(100).collect::<Vec<_>>();
+	vec = vec.into_iter().take(30).collect::<Vec<_>>();
 
 	println!("{}", vec.len());
 	for n in &vec {
@@ -42,16 +42,16 @@ pub fn main() {
 				let x = read!(usize) - 1;
 				let y = read!(usize) - 1;
 				if x == y {
-					eprintln!("ERR x == y is not allowed on iteration {}", n);
+					eprintln!("ERR x == y is not allowed, on iter {}", n);
 					return;
 				}
-				vec[x] = vec[x] / vec[y] + if vec[x] % vec[y] == 0 { 0 } else { 1 };
+				vec[x] = ceil_div(vec[x], vec[y]);
 			}
 			let mut two_was = false;
 			for x in vec {
 				if x == 2 {
 					if two_was {
-						eprintln!("ERR 2 not one time on iter {}", n);
+						eprintln!("ERR 2 not one time, on iter {}", n);
 						return;
 					} else {
 						two_was = true;
@@ -75,3 +75,4 @@ pub fn main() {
 
 include!("../../../../templates/src/to_include/imports.rs");
 include!("../../../../templates/src/to_include/scanner.rs");
+include!("../../../../templates/src/to_include/math/ceil_div.rs");

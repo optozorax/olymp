@@ -1,4 +1,7 @@
+use rand::prelude::*;
+
 pub fn main() {
+	let mut rng = rand::thread_rng();
 	// ----------------------------- Fast IO ------------------------------ //
 	let stdout = stdout();
 	let mut writer = BufWriter::new(stdout.lock());
@@ -12,6 +15,10 @@ pub fn main() {
 	#[rustfmt::skip] macro_rules! readln { ($t:tt) => { scanner.readln::<$t>() }; }
 	#[rustfmt::skip] macro_rules! byte { () => { scanner.byte() }; }
 	#[rustfmt::skip] macro_rules! bytes { () => { scanner.bytes() }; }
+	// -------------------------------------------------------------------- //
+	//                      DO NOT FORGET TO FLUSH!!!                       //
+	// -------------------------------------------------------------------- //
+	//                      DO NOT FORGET TO FLUSH!!!                       //
 	// -------------------------------------------------------------------- //
 
 	let arr = readln!(usize);

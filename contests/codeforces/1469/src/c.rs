@@ -15,19 +15,19 @@ pub fn main() {
 	// ----------------------------- Fast IO ------------------------------ //
 	let stdout = stdout();
 	let mut writer = BufWriter::new(stdout.lock());
-	macro_rules! print { ($($x:tt)*) => { write!(writer, $($x)*).unwrap() }; }
 	macro_rules! println { ($($x:tt)*) => { writeln!(writer, $($x)*).unwrap() }; }
-	#[rustfmt::skip] macro_rules! flush { ($($x:tt)*) => { writer.flush().unwrap() }; }
 
-	let input = std::io::stdin();
-	let mut stdin = input.lock().lines();
-	#[rustfmt::skip] macro_rules! read { () => { read(&mut stdin) }; }
+	let input = stdin();
+	let mut scanner = Scanner::new(input.lock().bytes().map(|x| x.unwrap()));
+	#[rustfmt::skip] macro_rules! read { ($t:tt) => { scanner.read::<$t>() }; }
+	#[rustfmt::skip] macro_rules! readln { ($t:tt) => { scanner.readln::<$t>() }; }
 	// -------------------------------------------------------------------- //
 
-	let t: usize = read!();
+	let t = read!(usize);
 	for _ in 0..t {
-		let SpaceTuple2(_n, k): SpaceTuple2<i64, i64> = read!();
-		let SpaceVec(h): SpaceVec<i64> = read!();
+		let _n = read!(i64);
+		let k = read!(i64);
+		let h = readln!(i64);
 		if solve(&h, k) {
 			println!("YES");
 		} else {
@@ -42,40 +42,4 @@ pub fn main() {
 //----------------------------------------------------------------------------
 
 include!("../../../../templates/src/to_include/imports.rs");
-
-fn read<T: FromStr, I: Iterator<Item = std::io::Result<String>>>(i: &mut I) -> T
-where <T as std::str::FromStr>::Err: std::fmt::Debug {
-	i.next().unwrap().unwrap().parse().unwrap()
-}
-
-struct SpaceVec<T>(pub Vec<T>);
-impl<T: FromStr> FromStr for SpaceVec<T>
-where <T as FromStr>::Err: std::error::Error + 'static
-{
-	type Err = Box<dyn std::error::Error>;
-
-	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		Ok(SpaceVec(
-			s.split_whitespace()
-				.map(|x| x.parse::<T>())
-				.collect::<Result<Vec<_>, _>>()?,
-		))
-	}
-}
-
-// Allows to read two different types, separated by space
-struct SpaceTuple2<A, B>(pub A, pub B);
-impl<A: FromStr, B: FromStr> FromStr for SpaceTuple2<A, B>
-where
-	<A as FromStr>::Err: std::error::Error + 'static,
-	<B as FromStr>::Err: std::error::Error + 'static,
-{
-	type Err = Box<dyn std::error::Error>;
-
-	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		let mut iter = s.split_whitespace();
-		let a = A::from_str(iter.next().ok_or_else(|| Box::new(Error))?)?;
-		let b = B::from_str(iter.next().ok_or_else(|| Box::new(Error))?)?;
-		Ok(SpaceTuple2(a, b))
-	}
-}
+include!("../../../../templates/src/to_include/scanner.rs");

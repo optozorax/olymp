@@ -30,5 +30,3 @@ pub mod b;
 pub mod c;
 pub mod d;
 pub mod d_checker;
-
-

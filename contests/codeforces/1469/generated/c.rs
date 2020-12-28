@@ -1,7 +1,7 @@
 /*****************************************************************************
 * Generated and tested by: olytest    (https://github.com/optozorax/olytest) *
 * Author: Ilya Sheprut                                      a.k.a. optozorax *
-* Generated at:                              Mon, 28 Dec 2020 22:26:53 +0700 *
+* Generated at:                              Tue, 29 Dec 2020 00:20:24 +0700 *
 * License: MIT/Apache 2.0                                                    *
 *****************************************************************************/
 
@@ -22,19 +22,19 @@ pub fn main() {
 	// ----------------------------- Fast IO ------------------------------ //
 	let stdout = stdout();
 	let mut writer = BufWriter::new(stdout.lock());
-	macro_rules! print { ($($x:tt)*) => { write!(writer, $($x)*).unwrap() }; }
 	macro_rules! println { ($($x:tt)*) => { writeln!(writer, $($x)*).unwrap() }; }
-	#[rustfmt::skip] macro_rules! flush { ($($x:tt)*) => { writer.flush().unwrap() }; }
 
-	let input = std::io::stdin();
-	let mut stdin = input.lock().lines();
-	#[rustfmt::skip] macro_rules! read { () => { read(&mut stdin) }; }
+	let input = stdin();
+	let mut scanner = Scanner::new(input.lock().bytes().map(|x| x.unwrap()));
+	#[rustfmt::skip] macro_rules! read { ($t:tt) => { scanner.read::<$t>() }; }
+	#[rustfmt::skip] macro_rules! readln { ($t:tt) => { scanner.readln::<$t>() }; }
 	// -------------------------------------------------------------------- //
 
-	let t: usize = read!();
+	let t = read!(usize);
 	for _ in 0..t {
-		let SpaceTuple2(_n, k): SpaceTuple2<i64, i64> = read!();
-		let SpaceVec(h): SpaceVec<i64> = read!();
+		let _n = read!(i64);
+		let k = read!(i64);
+		let h = readln!(i64);
 		if solve(&h, k) {
 			println!("YES");
 		} else {
@@ -62,40 +62,76 @@ use std::{
     str::FromStr,
 };
 
+//----------------------------------------------------------------------------
 
-fn read<T: FromStr, I: Iterator<Item = std::io::Result<String>>>(i: &mut I) -> T
-where <T as std::str::FromStr>::Err: std::fmt::Debug {
-	i.next().unwrap().unwrap().parse().unwrap()
+fn is_ascii_newline(byte: u8) -> bool { byte == b'\n' || byte == b'\r' }
+
+struct Scanner<I: Iterator> {
+    iter: Peekable<I>,
+    buf: Vec<u8>,
 }
 
-struct SpaceVec<T>(pub Vec<T>);
-impl<T: FromStr> FromStr for SpaceVec<T>
-where <T as FromStr>::Err: std::error::Error + 'static
-{
-	type Err = Box<dyn std::error::Error>;
+impl<I: Iterator<Item = u8>> Scanner<I> {
+    pub fn new(iter: I) -> Self { Self { iter: iter.peekable(), buf: Vec::with_capacity(100) } }
 
-	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		Ok(SpaceVec(
-			s.split_whitespace()
-				.map(|x| x.parse::<T>())
-				.collect::<Result<Vec<_>, _>>()?,
-		))
-	}
+    pub fn read<T: FromStr>(&mut self) -> T
+    where T::Err: Debug {
+        self.buf.clear();
+        self.skip_spaces();
+        while let Some(byte) = self.iter.peek().copied().filter(|x| !x.is_ascii_whitespace()) {
+            self.buf.push(byte);
+            self.iter.next();
+        }
+        let s = std::str::from_utf8(&self.buf).unwrap_or_else(|_| panic!("input is not utf8: {:?}", self.buf));
+        T::from_str(s).unwrap_or_else(|err| panic!("cannot parse from {:?}, error: {:?}", s, err))
+    }
+
+    pub fn byte(&mut self) -> u8 { self.iter.next().unwrap() }
+
+    pub fn bytes(&mut self) -> Vec<u8> {
+        let mut result = Vec::new();
+        self.skip_one_newline();
+        while let Some(byte) = self.iter.peek().copied().filter(|x| !is_ascii_newline(*x)) {
+            self.iter.next();
+            result.push(byte);
+        }
+        result
+    }
+
+    pub fn readln<T: FromStr>(&mut self) -> Vec<T>
+    where T::Err: Debug {
+        self.skip_one_newline();
+        let mut result = Vec::new();
+        self.skip_spaces_but_not_newlines();
+        while self.iter.peek().map(|x| !is_ascii_newline(*x)).unwrap_or(false) {
+            result.push(self.read());
+            self.skip_spaces_but_not_newlines();
+        }
+        result
+    }
+
+    fn skip_spaces_but_not_newlines(&mut self) {
+        while self.iter.peek().map(|x| x.is_ascii_whitespace() && !is_ascii_newline(*x)).unwrap_or(false) {
+            self.iter.next();
+        }
+    }
+
+    fn skip_spaces(&mut self) {
+        while self.iter.peek().map(|x| x.is_ascii_whitespace()).unwrap_or(false) {
+            self.iter.next();
+        }
+    }
+
+    fn skip_one_newline(&mut self) {
+        if self.iter.peek().copied().map(|x| x == b'\r').unwrap_or(false) {
+            self.iter.next();
+            if self.iter.peek().copied().map(|x| x == b'\n').unwrap_or(false) {
+                self.iter.next();
+            }
+        }
+        if self.iter.peek().copied().map(|x| x == b'\n').unwrap_or(false) {
+            self.iter.next();
+        }
+    }
 }
 
-// Allows to read two different types, separated by space
-struct SpaceTuple2<A, B>(pub A, pub B);
-impl<A: FromStr, B: FromStr> FromStr for SpaceTuple2<A, B>
-where
-	<A as FromStr>::Err: std::error::Error + 'static,
-	<B as FromStr>::Err: std::error::Error + 'static,
-{
-	type Err = Box<dyn std::error::Error>;
-
-	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		let mut iter = s.split_whitespace();
-		let a = A::from_str(iter.next().ok_or_else(|| Box::new(Error))?)?;
-		let b = B::from_str(iter.next().ok_or_else(|| Box::new(Error))?)?;
-		Ok(SpaceTuple2(a, b))
-	}
-}

@@ -2,18 +2,16 @@ pub fn main() {
 	// ----------------------------- Fast IO ------------------------------ //
 	let stdout = stdout();
 	let mut writer = BufWriter::new(stdout.lock());
-	macro_rules! print { ($($x:tt)*) => { write!(writer, $($x)*).unwrap() }; }
 	macro_rules! println { ($($x:tt)*) => { writeln!(writer, $($x)*).unwrap() }; }
-	#[rustfmt::skip] macro_rules! flush { ($($x:tt)*) => { writer.flush().unwrap() }; }
 
-	let input = std::io::stdin();
-	let mut stdin = input.lock().lines();
-	#[rustfmt::skip] macro_rules! read { () => { read(&mut stdin) }; }
+	let input = stdin();
+	let mut scanner = Scanner::new(input.lock().bytes().map(|x| x.unwrap()));
+	#[rustfmt::skip] macro_rules! read { ($t:tt) => { scanner.read::<$t>() }; }
 	// -------------------------------------------------------------------- //
 
-	let t: usize = read!();
+	let t = read!(usize);
 	for _ in 0..t {
-		let n: usize = read!();
+		let n = read!(usize);
 		if n == 3 {
 			println!("2\n3 2\n3 2");
 		} else if n == 4 {
@@ -32,7 +30,7 @@ pub fn main() {
 			let mut last = n;
 			while last != 1 {
 				ops.push((n, divisor));
-				last = last / divisor + if last % divisor == 0 { 0 } else { 1 };
+				last = ceil_div(last, divisor);
 			}
 			if divisor == 16 {
 				ops.push((16, 4));
@@ -55,8 +53,5 @@ pub fn main() {
 //----------------------------------------------------------------------------
 
 include!("../../../../templates/src/to_include/imports.rs");
-
-fn read<T: FromStr, I: Iterator<Item = std::io::Result<String>>>(i: &mut I) -> T
-where <T as std::str::FromStr>::Err: std::fmt::Debug {
-	i.next().unwrap().unwrap().parse().unwrap()
-}
+include!("../../../../templates/src/to_include/scanner.rs");
+include!("../../../../templates/src/to_include/math/ceil_div.rs");
