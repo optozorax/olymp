@@ -25,9 +25,25 @@ include!("to_include/for_each_number/subset.rs");
 
 include!("to_include/iterator/count.rs");
 include!("to_include/iterator/duplicate.rs");
+include!("to_include/iterator/fst_snd.rs");
 include!("to_include/iterator/push_map.rs");
+include!("to_include/iterator/rev_position.rs");
+include!("to_include/iterator/scan_after.rs");
+include!("to_include/iterator/scan_after_first.rs");
+include!("to_include/iterator/scan_before.rs");
+include!("to_include/iterator/scan_before_first.rs");
+
+include!("to_include/math/ceil_div.rs");
+include!("to_include/math/fastmod.rs");
+include!("to_include/math/gcd.rs");
+include!("to_include/math/lcm.rs");
+
+include!("to_include/sparse_table/base.rs");
+include!("to_include/sparse_table/rmq.rs");
+include!("to_include/sparse_table/find_most_segment.rs");
 
 include!("to_include/arithmetic_progression.rs");
+include!("to_include/binary_function.rs");
 include!("to_include/bit64.rs");
 include!("to_include/median.rs");
 include!("to_include/mod_arithmetic.rs");
@@ -37,7 +53,6 @@ include!("to_include/prefix.rs");
 include!("to_include/quadratic_equation.rs");
 include!("to_include/scanner.rs");
 include!("to_include/segment_tree.rs");
-include!("to_include/sparse_table.rs");
 include!("to_include/suffix.rs");
 include!("to_include/z_function.rs");
 
@@ -470,5 +485,41 @@ mod segment_tree_tests {
         test(vec![1, 2, 3, 3, 3, 4, 4, 3, 4, 2, 1]);
         test(vec![1, 2, 3, 0, 555, 1, 0, 0]);
         test(vec![1, 2, 32, 6, 7, 8, 53, 33]);
+    }
+}
+
+#[cfg(test)]
+mod scan_tests {
+    use super::*;
+
+    #[test]
+    fn scan() {
+        color_backtrace::install();
+
+        let a = [1, 2, 3];
+        assert!(
+            a.iter()
+                .copied()
+                .scan_after(4, |state, &item| state * item)
+                .eq([(4, 1), (4, 2), (8, 3)].iter().copied())
+        );
+        assert!(
+            a.iter()
+                .copied()
+                .scan_after_first(|state, &item| state * item)
+                .eq([(1, 2), (2, 3)].iter().copied())
+        );
+        assert!(
+            a.iter()
+                .copied()
+                .scan_before(4, |state, &item| state * item)
+                .eq([(4, 1), (8, 2), (24, 3)].iter().copied())
+        );
+        assert!(
+            a.iter()
+                .copied()
+                .scan_before_first(|state, &item| state * item)
+                .eq([(2, 2), (6, 3)].iter().copied())
+        );
     }
 }
