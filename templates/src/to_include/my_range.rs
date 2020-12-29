@@ -37,6 +37,9 @@ impl MyRange {
 	fn intersect(&self, other: Self) -> Option<Self> {
 		Self::safe_new(max(self.start, other.start), min(self.end, other.end))
 	}
+	fn split(&self, at: i64) -> Option<(MyRange, MyRange)> {
+		Some((Self::safe_new(self.start, at)?, Self::safe_new(at, self.end)?))
+	}
 }
 
 impl Add<i64> for MyRange {
@@ -50,4 +53,12 @@ impl Sub<i64> for MyRange {
     fn sub(self, other: i64) -> Self {
         MyRange { start: self.start - other, end: self.end - other }
     }
+}
+
+impl<T> From<MyRange> for Range<T>
+where T: TryFrom<i64>, T::Error: Debug
+{
+	fn from(r: MyRange) -> Range<T> {
+		r.start.try_into().unwrap()..r.end.try_into().unwrap()
+	}
 }

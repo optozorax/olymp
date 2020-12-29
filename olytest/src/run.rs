@@ -256,6 +256,8 @@ pub async fn run_with_checker<T: WriteColor>(
         Err((_, err)) => return Err(RunErr::IoError(err)),
     }
 
+    checker_stdin.flush().await.unwrap();
+
     let mut buffer1 = Vec::with_capacity(1000);
     let mut buffer2 = Vec::with_capacity(1000);
     let mut buffer3 = Vec::with_capacity(1000);
@@ -288,6 +290,7 @@ pub async fn run_with_checker<T: WriteColor>(
                         Err((std::io::ErrorKind::BrokenPipe, _)) => {}
                         Err((_, err)) => return Err(RunErr::IoError(err)),
                     }
+                    program_stdin.flush().await.unwrap();
                 } else {
                     checker_stdout_closed = true;
                     program_stdin.shutdown().await.unwrap();
@@ -314,6 +317,7 @@ pub async fn run_with_checker<T: WriteColor>(
                         Err((std::io::ErrorKind::BrokenPipe, _)) => {}
                         Err((_, err)) => return Err(RunErr::IoError(err)),
                     }
+                    checker_stdin.flush().await.unwrap();
                 } else {
                     program_stdout_closed = true;
                     checker_stdin.shutdown().await.unwrap();
