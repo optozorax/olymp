@@ -1,5 +1,5 @@
-// Simple type
+// Copy type
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 
-// Copy type
+// Simple type
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]

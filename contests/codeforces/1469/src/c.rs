@@ -1,14 +1,18 @@
-fn solve(h: &[i64], k: i64) -> bool {
-	let mut current_range = (h[0], h[0]);
-	for h in h.iter().copied().skip(1).take(h.len() - 2) {
-		let h_range = (h, h + (k - 1));
-		current_range = (max(current_range.0 - (k - 1), h_range.0), min(current_range.1 + (k - 1), h_range.1));
-		if current_range.0 > current_range.1 {
-			return false;
-		}
-	}
-	let last = *h.last().unwrap();
-	current_range.0 - (k - 1) <= last && last <= current_range.1 + (k - 1)
+include!("../../../../templates/src/to_include/macro/try_bool.rs");
+
+fn solve(h: &[i64], mut k: i64) -> bool {
+	k -= 1;
+	let end = try_bool!(
+		h.iter()
+			.copied()
+			.skip(1)
+			.take(h.len() - 2)
+			.map(|hi| MyRange::from(hi..=hi + k))
+			.try_fold(MyRange::point(h[0]), |acc, x| MyRange::from(acc.start - k..acc.end + k)
+				.intersect(x)?
+				.not_empty())
+	);
+	MyRange::from(end.start - k..end.end + k).contains(*h.last().unwrap())
 }
 
 pub fn main() {
@@ -43,3 +47,4 @@ pub fn main() {
 
 include!("../../../../templates/src/to_include/imports.rs");
 include!("../../../../templates/src/to_include/scanner.rs");
+include!("../../../../templates/src/to_include/my_range.rs");

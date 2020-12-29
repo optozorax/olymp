@@ -7,6 +7,9 @@
     unused_imports
 )]
 
+include!("to_include/macro/time.rs");
+include!("to_include/macro/try_bool.rs");
+
 include!("to_include/imports.rs");
 
 include!("to_include/binary_search/base.rs");
@@ -18,7 +21,6 @@ include!("to_include/display/joined_by.rs");
 include!("to_include/display/lines.rs");
 include!("to_include/display/space_matrix.rs");
 include!("to_include/display/space_vec.rs");
-include!("to_include/display/time.rs");
 
 include!("to_include/for_each_number/base.rs");
 include!("to_include/for_each_number/subset.rs");
@@ -47,6 +49,7 @@ include!("to_include/binary_function.rs");
 include!("to_include/bit64.rs");
 include!("to_include/median.rs");
 include!("to_include/mod_arithmetic.rs");
+include!("to_include/my_range.rs");
 include!("to_include/option.rs");
 include!("to_include/permutations.rs");
 include!("to_include/prefix.rs");

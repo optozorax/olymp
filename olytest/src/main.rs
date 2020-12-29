@@ -191,6 +191,17 @@ fn format<T: WriteColor>(stdout: &mut T) {
         });
 }
 
+fn format_generated<T: WriteColor>(stdout: &mut T, name: &str) {
+    clrln!(stdout, n (Color::Black) "Formatting generated file...");
+    Command::new("rustfmt")
+        .arg(format!("generated/{}.rs", name))
+        .output()
+        .map(drop)
+        .unwrap_or_else(|err| {
+            clrln!(stdout, b (Color::Red) "Format error:"; "{}", err);
+        });
+}
+
 fn test<Out: WriteColor>(mut stdout: &mut Out, name: &str, opt: &TestSettings) {
     let test_file_name = format!("tests/{}.test", name);
     let test_file_content = read_file(test_file_name.as_str()).unwrap_or_else(|err| {
@@ -224,6 +235,8 @@ fn test<Out: WriteColor>(mut stdout: &mut Out, name: &str, opt: &TestSettings) {
         }
         exit(1)
     });
+
+    format_generated(&mut stdout, &name);
 
     let program_file_name = compile(&mut stdout, &name, &opt);
     let checker_file_name = if has_checker {
