@@ -85,18 +85,8 @@ fn solve(field: Vec<Vec<Elem>>) -> Option<Vec<Vec<Elem>>> {
 	None
 }
 
+#[fastio::fastio]
 pub fn main() {
-	// ----------------------------- Fast IO ------------------------------ //
-	let stdout = stdout();
-	let mut writer = BufWriter::new(stdout.lock());
-	macro_rules! println { ($($x:tt)*) => { writeln!(writer, $($x)*).unwrap() }; }
-
-	let input = stdin();
-	let mut scanner = Scanner::new(input.lock().bytes().map(|x| x.unwrap()));
-	#[rustfmt::skip] macro_rules! read { ($t:tt) => { scanner.read::<$t>() }; }
-	#[rustfmt::skip] macro_rules! bytes { () => { scanner.bytes() }; }
-	// -------------------------------------------------------------------- //
-
 	let t = read!(usize);
 	for _ in 0..t {
 		let n = read!(usize);

@@ -25,17 +25,8 @@ fn get_answer(n: i64, depth: i64) -> i64 {
 	}
 }
 
+#[fastio::fastio]
 pub fn main() {
-	// ----------------------------- Fast IO ------------------------------ //
-	let stdout = stdout();
-	let mut writer = BufWriter::new(stdout.lock());
-	macro_rules! println { ($($x:tt)*) => { writeln!(writer, $($x)*).unwrap() }; }
-
-	let input = stdin();
-	let mut scanner = Scanner::new(input.lock().bytes().map(|x| x.unwrap()));
-	#[rustfmt::skip] macro_rules! read { ($t:tt) => { scanner.read::<$t>() }; }
-	// -------------------------------------------------------------------- //
-
 	let count = read!(i64);
 	for _ in 0..count {
 		let n = read!(i64);

@@ -41,17 +41,8 @@ fn is_utkarsh_wins(d: u64, k: u64) -> bool {
 	}
 }
 
+#[fastio::fastio]
 pub fn main() {
-	// ----------------------------- Fast IO ------------------------------ //
-	let stdout = stdout();
-	let mut writer = BufWriter::new(stdout.lock());
-	macro_rules! println { ($($x:tt)*) => { writeln!(writer, $($x)*).unwrap() }; }
-
-	let input = stdin();
-	let mut scanner = Scanner::new(input.lock().bytes().map(|x| x.unwrap()));
-	#[rustfmt::skip] macro_rules! read { ($t:tt) => { scanner.read::<$t>() }; }
-	// -------------------------------------------------------------------- //
-
 	let count: i64 = read!(i64);
 	for _ in 0..count {
 		let d = read!(u64);

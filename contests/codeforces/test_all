@@ -1,0 +1,11 @@
+#!/bin/bash
+
+for FOLDER in *
+do
+	if [[ -d $FOLDER ]]; then
+	    echo "Testing for $FOLDER."
+	    cd $FOLDER
+	    ol ta
+	    cd ..
+	fi
+done

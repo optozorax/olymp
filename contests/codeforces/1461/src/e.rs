@@ -108,17 +108,8 @@ fn solve(mut input: Input) -> bool {
 	}
 }
 
+#[fastio::fastio]
 pub fn main() {
-	// ----------------------------- Fast IO ------------------------------ //
-	let stdout = stdout();
-	let mut writer = BufWriter::new(stdout.lock());
-	macro_rules! println { ($($x:tt)*) => { writeln!(writer, $($x)*).unwrap() }; }
-
-	let input = stdin();
-	let mut scanner = Scanner::new(input.lock().bytes().map(|x| x.unwrap()));
-	#[rustfmt::skip] macro_rules! readln { ($t:tt) => { scanner.readln::<$t>() }; }
-	// -------------------------------------------------------------------- //
-
 	let a = readln!(i64);
 	let input = Input { current: a[0] - a[1], max: a[2] - a[1], need_days: a[3], must_sub: a[4], can_add: a[5] };
 	if solve(input) {

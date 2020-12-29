@@ -4,18 +4,8 @@ fn solve(s: &[u8], l: usize, r: usize) -> bool {
 	first_pos != l || last_pos != r
 }
 
+#[fastio::fastio]
 pub fn main() {
-	// ----------------------------- Fast IO ------------------------------ //
-	let stdout = stdout();
-	let mut writer = BufWriter::new(stdout.lock());
-	macro_rules! println { ($($x:tt)*) => { writeln!(writer, $($x)*).unwrap() }; }
-
-	let input = stdin();
-	let mut scanner = Scanner::new(input.lock().bytes().map(|x| x.unwrap()));
-	#[rustfmt::skip] macro_rules! read { ($t:tt) => { scanner.read::<$t>() }; }
-	#[rustfmt::skip] macro_rules! bytes { () => { scanner.bytes() }; }
-	// -------------------------------------------------------------------- //
-
 	let t = read!(u8);
 	for _ in 0..t {
 		let _n = read!(u8);

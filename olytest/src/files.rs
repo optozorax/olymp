@@ -298,17 +298,29 @@ pub fn generate_without_include(path: &Path) -> Result<(), GenerateError> {
     .map_err(GenerateError::OtherFiles)?;
 
     let re = Regex::new(r#"include!\("([^"]+)"\);"#).unwrap();
+    let re2 = Regex::new(r##"#\[fastio::fastio\]\n(pub )?fn main\(\) \{"##).unwrap();
+    struct ToReplace {
+        span: std::ops::Range<usize>,
+        kind: ToReplaceKind,
+    }
+    enum ToReplaceKind {
+        Include(PathBuf),
+        FastIo,
+    }
     let mut files = re
         .captures_iter(&file)
         .map(|x| {
-            (
-                x.get(0).unwrap().range(),
-                Path::new(std::str::from_utf8(x.get(1).unwrap().as_bytes()).unwrap()),
-            )
+            ToReplace {
+                span: x.get(0).unwrap().range(),
+                kind: ToReplaceKind::Include(PathBuf::from(std::str::from_utf8(x.get(1).unwrap().as_bytes()).unwrap())),
+            }
         })
         .collect::<Vec<_>>();
-    files.sort_unstable_by_key(|x| x.0.start);
-
+    files.extend(re2.captures_iter(&file).map(|x| ToReplace {
+        span: x.get(0).unwrap().range(),
+        kind: ToReplaceKind::FastIo,
+    }));
+    files.sort_unstable_by_key(|x| x.span.start);
     let new_file = {
         use chrono::prelude::*;
         let local: DateTime<Local> = Local::now();
@@ -343,18 +355,29 @@ pub fn generate_without_include(path: &Path) -> Result<(), GenerateError> {
         let mut new_file = write_to_vec(header);
         let mut start = 0;
         let mut first = true;
-        for (range, include_file_path) in files {
-            let include_file_content =
-                read(parent.join(include_file_path)).map_err(GenerateError::IncludeError)?;
-            new_file.extend(&file[start..range.start]);
-            if !first {
-                new_file.extend(separator);
-            } else {
-                first = false;
+        for ToReplace { span: range, kind } in files {
+            match kind {
+                ToReplaceKind::Include(include_file_path) => {
+                    let include_file_content =
+                        read(parent.join(include_file_path)).map_err(GenerateError::IncludeError)?;
+                    new_file.extend(&file[start..range.start]);
+                    if !first {
+                        new_file.extend(separator);
+                    } else {
+                        first = false;
+                    }
+                    new_file.extend(trim(&include_file_content, |x| x.is_ascii_whitespace()));
+                    new_file.push(b'\n');
+                },
+                ToReplaceKind::FastIo => {
+                    let fast_io = include_bytes!("../../templates/src/to_copy_paste/fast_io.rs");
+                    new_file.extend(&file[start..range.start]);
+                    new_file.extend(b"fn main() {\n");
+                    new_file.extend(fast_io);
+                    new_file.push(b'\n');
+                },
             }
-            new_file.extend(trim(&include_file_content, |x| x.is_ascii_whitespace()));
-            new_file.push(b'\n');
-            start = range.end;
+            start = range.end;        
         }
         new_file.extend(&file[start..]);
         new_file
