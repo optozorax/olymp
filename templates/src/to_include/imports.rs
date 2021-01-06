@@ -8,6 +8,6 @@ use std::{
     iter::{once, FromIterator, Peekable, FusedIterator},
     marker::PhantomData,
     mem::swap,
-    ops::{Add, Div, Mul, Neg, Range, RangeInclusive, Rem, Sub},
+    ops::{Add, Div, Mul, Neg, Range, RangeInclusive, Rem, Sub, AddAssign},
     str::FromStr,
 };
