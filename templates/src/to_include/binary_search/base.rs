@@ -1,5 +1,16 @@
 // It is supposed that `f` returns `false` `n` times, then `true` `n` times. This method uses binary search to find `n`. This function calls `f` only on range [on.start; on.end).
 fn binary_search<F: Fn(usize) -> bool>(on: Range<usize>, f: F) -> Option<usize> {
+	#[cfg(debug_assertions)]
+	{
+		let mut met_true = false;
+		for i in on.clone() {
+			let v = f(i);
+			if met_true && !v {
+				panic!("binary_search guarantees (false after true) violated on position: `{}`", i);
+			}
+			met_true |= v;
+		}
+	}
 	let mut a = on.start;
 	let mut b = on.end;
 	match b.checked_sub(a)? {
