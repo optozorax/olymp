@@ -15,6 +15,7 @@ include!("to_include/imports.rs");
 include!("to_include/binary_search/base.rs");
 include!("to_include/binary_search/number.rs");
 include!("to_include/binary_search/range.rs");
+include!("to_include/binary_search/parabola_min.rs");
 
 include!("to_include/display/chars.rs");
 include!("to_include/display/joined_by.rs");
@@ -321,6 +322,25 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod tests_parabola_min {
+    use super::*;
+
+    #[test]
+    fn testing() {
+        fn test(vec: Vec<i64>) -> Option<(usize, i64)> {
+            parabola_min(0..vec.len(), |pos| vec[pos])
+        }
+        assert_eq!(test(vec![]), None);
+        assert_eq!(test(vec![11, 11, 11, 8, 8, 8, 8, 14, 14]), Some((3, 8)));
+        assert_eq!(test(vec![4, 5, 6]), Some((0, 4)));
+        assert_eq!(test(vec![4, 4, 4, 5, 6]), Some((2, 4)));
+        assert_eq!(test(vec![6, 5, 4]), Some((2, 4)));
+        assert_eq!(test(vec![6, 5, 5, 5, 4, 4, 4]), Some((4, 4)));
+    }
+}
+
 
 #[cfg(test)]
 mod tests_median {

@@ -12,10 +12,12 @@ mod tests {
         use rand::Rng;
         let mut rng = rand::thread_rng();
         for _ in 0..200000 {
-            let size = rng.gen_range(1, 35);
-            let fast_ans = unimplemented!();
-            let long_ans = unimplemented!();
+            let size = 20;
+            let a = (0..size).map(|_| rng.gen_range(1, 10)).collect::<Vec<u64>>();
+            let fast_ans = solve_fast(&a);
+            let long_ans = solve_long(&a);
             if fast_ans != long_ans {
+                dbg!(a, fast_ans, long_ans);
                 panic!();
             }
         }
