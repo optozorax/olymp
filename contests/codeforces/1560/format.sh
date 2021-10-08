@@ -1,0 +1,1 @@
+clang-format $1 > tmp && (rm $1; mv tmp $1)
