@@ -1,0 +1,1 @@
+g++ $1.cpp -g && valgrind --track-origins=yes --leak-check=full ./a.out
