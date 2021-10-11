@@ -38,6 +38,18 @@ public:
         l[l[0].next].prev = prev;
         l[0].next = prev;
     }
+
+    void move_to_front(int pos) {
+        auto elem = l[pos];
+        l[elem.prev].next = elem.next;
+        l[elem.next].prev = elem.prev;
+        
+        l[pos].next = l[0].next;
+        l[pos].prev = 0;
+        
+        l[l[0].next].prev = pos;
+        l[0].next = pos;
+    }
     
     int pop() {
         return l[l.back().prev].val;
@@ -50,8 +62,9 @@ public:
     int get(int key) {
         if (v.find(key) == v.end()) return -1;
         
-        del(p[key]);
-        push_front(key);
+        move_to_front(p[key]);
+        // del(p[key]);
+        // push_front(key);
         p[key] = begin();
         
         return v[key];
